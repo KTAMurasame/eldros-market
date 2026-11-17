@@ -447,7 +447,9 @@ public final class MarketCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        boolean turkish = "tr_TR".equals(msg.languageOf(sender)) || alias.equalsIgnoreCase("pazar");
+        // Suggestions follow the player's language, not the alias typed: every alias accepts both languages' words,
+        // and a player who switched with /pazar dil must see the new language right away.
+        boolean turkish = "tr_TR".equals(msg.languageOf(sender));
         if (args.length == 1) {
             return prefixed(turkish ? TR : EN, args[0]);
         }
