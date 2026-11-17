@@ -1,0 +1,16 @@
+name: EldrosSpike
+version: '${project.version}'
+main: com.eldros.market.spike.SpikePlugin
+api-version: '${spike.apiVersion}'
+description: Throwaway F0 spike for Eldros Market. Not a product.
+softdepend: [Vault, VaultUnlocked, Essentials]
+libraries:
+  - org.xerial:sqlite-jdbc:${sqlite.version}
+commands:
+  spike:
+    description: Spike checks
+    usage: /spike <info|items|export|import <file>|eco|testeco <normal|throw-before|throw-after>|storage|take <n>|take-nosave <n>|check|clear|savetime <n>>
+    permission: eldrosspike.use
+permissions:
+  eldrosspike.use:
+    default: op

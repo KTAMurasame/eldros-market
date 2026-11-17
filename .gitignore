@@ -1,0 +1,11 @@
+# Local test environment: servers, JDKs, downloads (never committed)
+.testenv/
+
+# Build output
+target/
+spike/**/target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
