@@ -92,6 +92,10 @@ public final class MatchingEngine {
         return plan;
     }
 
+    boolean isEmpty() {
+        return active.isEmpty();
+    }
+
     public OrderBook book(TemplateId template) {
         OrderBook book = books.get(template);
         return book != null ? book : new OrderBook();
