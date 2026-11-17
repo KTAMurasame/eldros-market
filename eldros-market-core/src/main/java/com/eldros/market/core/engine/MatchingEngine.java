@@ -5,6 +5,7 @@ import com.eldros.market.api.model.OrderStatus;
 import com.eldros.market.api.model.TemplateId;
 import com.eldros.market.core.domain.Money;
 import com.eldros.market.core.domain.Order;
+import com.eldros.market.core.domain.PlayerId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -135,6 +136,82 @@ public final class MatchingEngine {
         return active.values().stream()
                 .filter(o -> o.expiresAt() != null && o.expiresAt() <= nowMillis)
                 .toList();
+    }
+
+    // --- read-only views for menus (engine thread; results are immutable values) -------------------------
+
+    /** Every market with at least one resting order, ordered by template id. */
+    public List<BookView.MarketSummary> summaries() {
+        List<BookView.MarketSummary> out = new ArrayList<>();
+        books.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(java.util.Comparator.comparingLong(TemplateId::value)))
+                .forEach(e -> {
+                    OrderBook book = e.getValue();
+                    List<Order> bids = book.bids();
+                    List<Order> asks = book.asks();
+                    if (bids.isEmpty() && asks.isEmpty()) {
+                        return;
+                    }
+                    out.add(new BookView.MarketSummary(e.getKey(), book.bestBid(), book.bestAsk(),
+                            bids.stream().mapToLong(Order::remaining).sum(), asks.stream().mapToLong(Order::remaining).sum(),
+                            bids.size() + asks.size()));
+                });
+        return out;
+    }
+
+    /** The best {@code maxLevels} price levels of one side, best first; {@code viewer} may be null. */
+    public List<BookView.DepthLevel> depth(TemplateId template, OrderSide side, int maxLevels, PlayerId viewer) {
+        OrderBook book = books.get(template);
+        if (book == null || maxLevels <= 0) {
+            return List.of();
+        }
+        List<BookView.DepthLevel> out = new ArrayList<>();
+        for (Map.Entry<Money, NavigableMap<Long, Order>> level : book.levels(side).entrySet()) {
+            long quantity = 0;
+            long own = 0;
+            for (Order o : level.getValue().values()) {
+                quantity += o.remaining();
+                if (o.owner().equals(viewer)) {
+                    own += o.remaining();
+                }
+            }
+            out.add(new BookView.DepthLevel(side, level.getKey(), quantity, level.getValue().size(), own));
+            if (out.size() == maxLevels) {
+                break;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * What {@link #plan} would fill for such an order now, without creating one: same walk, same self-trade
+     * skip, same resting prices. Used to show an estimate before the player confirms.
+     */
+    public BookView.Preview preview(PlayerId owner, OrderSide side, TemplateId template, Money limit, long quantity) {
+        OrderBook book = books.get(template);
+        long left = quantity;
+        Money cost = Money.ZERO;
+        boolean crossesOwn = false;
+        if (book != null) {
+            for (Map.Entry<Money, NavigableMap<Long, Order>> level : book.levels(side.opposite()).entrySet()) {
+                if (!BookView.crosses(side, limit, level.getKey())) {
+                    break;
+                }
+                for (Order resting : level.getValue().values()) {
+                    if (resting.owner().equals(owner)) {
+                        crossesOwn = true;
+                        continue;
+                    }
+                    if (left == 0) {
+                        continue; // keep scanning only to detect an own crossing order
+                    }
+                    long q = Math.min(left, resting.remaining());
+                    cost = cost.plus(level.getKey().times(q));
+                    left -= q;
+                }
+            }
+        }
+        return new BookView.Preview(quantity - left, cost, crossesOwn);
     }
 
     private static boolean crosses(Order incoming, Money restingPrice) {

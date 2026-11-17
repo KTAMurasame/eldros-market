@@ -123,9 +123,19 @@ public final class JdbcJournal {
     }
 
     public List<MailboxRow> availableFor(Connection c, PlayerId owner) throws SQLException {
+        return mailboxFor(c, owner, "AVAILABLE");
+    }
+
+    /** Entries an admin must review before they can be claimed (docs/03 §7.3: shown as "under review", never claimable). */
+    public List<MailboxRow> inReviewFor(Connection c, PlayerId owner) throws SQLException {
+        return mailboxFor(c, owner, "QUARANTINED");
+    }
+
+    private List<MailboxRow> mailboxFor(Connection c, PlayerId owner, String status) throws SQLException {
         List<MailboxRow> out = new ArrayList<>();
-        try (PreparedStatement p = c.prepareStatement("SELECT id FROM mailbox WHERE owner_uuid = ? AND status = 'AVAILABLE' ORDER BY id")) {
+        try (PreparedStatement p = c.prepareStatement("SELECT id FROM mailbox WHERE owner_uuid = ? AND status = ? ORDER BY id")) {
             p.setString(1, owner.value().toString());
+            p.setString(2, status);
             try (ResultSet rs = p.executeQuery()) {
                 while (rs.next()) {
                     mailbox(c, rs.getLong(1)).ifPresent(out::add);

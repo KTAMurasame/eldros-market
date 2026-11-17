@@ -1,0 +1,23 @@
+# Layout of this screen. Texts (titles, names, lore) are in lang/<language>.yml under "menu.".
+# slot: 0 = top-left, 9 per row. slot: -1 hides a button. material: any item id (e.g. CHEST).
+# A wrong value is reported in the console with its key, and the bundled default is used instead.
+rows: 6
+filler: GRAY_STAINED_GLASS_PANE
+buttons:
+  item: {slot: 4, material: STONE}
+  side: {slot: 13, material: LIME_DYE}
+  qty-minus-64: {slot: 19, material: RED_STAINED_GLASS_PANE}
+  qty-minus-10: {slot: 20, material: RED_STAINED_GLASS_PANE}
+  qty-minus-1: {slot: 21, material: RED_STAINED_GLASS_PANE}
+  qty-input: {slot: 22, material: NAME_TAG}
+  qty-plus-1: {slot: 23, material: LIME_STAINED_GLASS_PANE}
+  qty-plus-10: {slot: 24, material: LIME_STAINED_GLASS_PANE}
+  qty-plus-64: {slot: 25, material: LIME_STAINED_GLASS_PANE}
+  qty-max: {slot: 26, material: HOPPER}
+  price-minus-10: {slot: 29, material: ORANGE_STAINED_GLASS_PANE}
+  price-minus-1: {slot: 30, material: ORANGE_STAINED_GLASS_PANE}
+  price-input: {slot: 31, material: GOLD_NUGGET}
+  price-plus-1: {slot: 32, material: LIGHT_BLUE_STAINED_GLASS_PANE}
+  price-plus-10: {slot: 33, material: LIGHT_BLUE_STAINED_GLASS_PANE}
+  back: {slot: 45, material: ARROW}
+  confirm: {slot: 49, material: EMERALD_BLOCK}

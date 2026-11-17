@@ -335,6 +335,32 @@ public final class JdbcLedger {
         return out;
     }
 
+    /** One trade seen from one player's side: {@code bought} is true when the player was the buyer. */
+    public record TradeRow(long id, TemplateId template, boolean bought, long quantity, Money unitPrice, long executedAt) {
+    }
+
+    /**
+     * The player's trades, newest first. {@code side} null = both, BUY = only bought, SELL = only sold.
+     * Self-trades cannot exist (CHECK constraint), so a row is never both.
+     */
+    public List<TradeRow> tradesOf(Connection c, PlayerId player, OrderSide side, int limit, int offset) throws SQLException {
+        String where = side == null ? "(buyer_uuid = ?1 OR seller_uuid = ?1)" : side == OrderSide.BUY ? "buyer_uuid = ?1" : "seller_uuid = ?1";
+        List<TradeRow> out = new ArrayList<>();
+        try (PreparedStatement p = c.prepareStatement("SELECT id, template_id, buyer_uuid = ?1, qty, unit_price, executed_at FROM trades WHERE "
+                + where + " ORDER BY executed_at DESC, id DESC LIMIT ?2 OFFSET ?3")) {
+            p.setString(1, player.value().toString());
+            p.setInt(2, limit);
+            p.setInt(3, offset);
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new TradeRow(rs.getLong(1), new TemplateId(rs.getLong(2)), rs.getInt(3) == 1, rs.getLong(4),
+                            Money.ofMinor(rs.getLong(5)), rs.getLong(6)));
+                }
+            }
+        }
+        return out;
+    }
+
     public int countActiveOrders(Connection c, PlayerId player) throws SQLException {
         try (PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM orders WHERE owner_uuid = ? AND status = 'ACTIVE'")) {
             p.setString(1, player.value().toString());

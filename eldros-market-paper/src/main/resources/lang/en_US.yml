@@ -126,3 +126,147 @@ admin:
   resolve-failed: "<red>Could not resolve: <error></red>"
   orphan-markers: "<red>Player <player> carries <count> marker(s) with no journal entry: <list>. Check backups before removing.</red>"
   usage: "<gray>/marketadmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [qty]</gray>"
+
+# --- menus (layouts are in menus/*.yml) ----------------------------------------------------------------
+menu:
+  prompt:
+    search: "<yellow>Type a search word in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
+    quantity: "<yellow>Type the quantity in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
+    price: "<yellow>Type the unit price in chat, e.g. 12.50</yellow> <gray>(or <white>cancel</white>).</gray>"
+  common:
+    none: "<gray>none</gray>"
+    back: {name: "<yellow>Back</yellow>"}
+    close: {name: "<red>Close</red>"}
+    refresh: {name: "<yellow>Refresh</yellow>"}
+    previous: {name: "<yellow>Previous page</yellow>", lore: ["<gray>Page <page>/<pages></gray>"]}
+    next: {name: "<yellow>Next page</yellow>", lore: ["<gray>Page <page>/<pages></gray>"]}
+    loading: {name: "<gray>Loading…</gray>"}
+    empty: {name: "<gray>Nothing here yet.</gray>"}
+    search: {name: "<yellow>Search</yellow>", lore: ["<gray>Current: <white><search></white></gray>", "<gray>Click and type in chat.</gray>"]}
+    clear-search: {name: "<yellow>Clear search</yellow>"}
+  main:
+    title: "<dark_gray>Eldros Market</dark_gray>"
+    browse: {name: "<gold>Browse the market</gold>", lore: ["<gray>Items with open buy and sell orders.</gray>"]}
+    create: {name: "<gold>New order</gold>", lore: ["<gray>Pick an item and place a buy or sell order.</gray>"]}
+    orders: {name: "<gold>My orders</gold>", lore: ["<gray>Your active orders; cancel them here.</gray>"]}
+    history: {name: "<gold>History</gold>", lore: ["<gray>Your past trades.</gray>"]}
+    mailbox: {name: "<gold>Mailbox</gold>", lore: ["<gray>Waiting for you: <yellow><count></yellow></gray>", "<gray>Bought items, earnings and refunds.</gray>"]}
+    language: {name: "<gold>Language</gold>", lore: ["<gray>Current: <white><language></white></gray>"]}
+    close: {name: "<red>Close</red>"}
+    safe-mode: {name: "<red>Market paused for maintenance</red>", lore: ["<gray>Your money and items are safe.</gray>", "<gray>New orders and claims are paused.</gray>"]}
+  browse:
+    title: "<dark_gray>Market <search></dark_gray>"
+    catalog: {name: "<gold>New order</gold>", lore: ["<gray>Pick any item from the catalog.</gray>"]}
+    empty: {name: "<gray>No open orders yet.</gray>", lore: ["<gray>Be the first: <yellow>New order</yellow>.</gray>"]}
+    entry:
+      - "<gray>Lowest sell: <best-ask> <dark_gray>(<ask-qty> items)</dark_gray></gray>"
+      - "<gray>Highest buy: <best-bid> <dark_gray>(<bid-qty> items)</dark_gray></gray>"
+      - "<dark_gray><orders> orders</dark_gray>"
+      - "<yellow>Click to open the order book.</yellow>"
+  catalog:
+    title: "<dark_gray>Catalog <search></dark_gray>"
+    held-item: {name: "<gold>Item in your hand</gold>", lore: ["<gray>For items with special data:</gray>", "<gray>enchanted, renamed, potions…</gray>"]}
+    empty: {name: "<gray>No item matches.</gray>"}
+    entry: ["<yellow>Click to open the order book.</yellow>"]
+  book:
+    title: "<dark_gray>Order book: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray>Lowest sell: <best-ask></gray>"
+        - "<gray>Highest buy: <best-bid></gray>"
+    ask:
+      name: "<red>Sell offer: <price></red>"
+      lore: ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to buy at this price.</yellow>"]
+    bid:
+      name: "<green>Buy offer: <price></green>"
+      lore: ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to sell at this price.</yellow>"]
+    own:
+      lore: ["<aqua><own> of these are yours (never matched with your own orders).</aqua>"]
+    buy: {name: "<green>Place a buy order</green>", lore: ["<gray>Money is reserved until it fills or you cancel.</gray>"]}
+    sell: {name: "<gold>Place a sell order</gold>", lore: ["<gray>Items are taken from your inventory until sold or cancelled.</gray>"]}
+    empty: {name: "<gray>No orders for this item yet.</gray>", lore: ["<gray>Place the first one below.</gray>"]}
+  create:
+    title: "<dark_gray>New order: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray>Side: <side></gray>"
+        - "<gray>Quantity: <yellow><qty></yellow></gray>"
+        - "<gray>Unit price: <price></gray>"
+        - "<gray>Total: <total></gray>"
+    preview-loading: ["<dark_gray>Checking the book…</dark_gray>"]
+    preview: ["<green><fill> of <qty> would trade right away for <cost>.</green>"]
+    preview-none: ["<gray>Nothing would trade right away; the order waits in the book.</gray>"]
+    own-cross: ["<aqua>Your own opposite order is in range; it is skipped.</aqua>"]
+    owned: ["<gray>You have <yellow><owned></yellow> of this item.</gray>"]
+    side: {name: "<white>Side: <side></white>", lore: ["<gray>Click to switch buy/sell.</gray>"]}
+    qty-minus-64: {name: "<red>-64</red>"}
+    qty-minus-10: {name: "<red>-10</red>"}
+    qty-minus-1: {name: "<red>-1</red>"}
+    qty-plus-1: {name: "<green>+1</green>"}
+    qty-plus-10: {name: "<green>+10</green>"}
+    qty-plus-64: {name: "<green>+64</green>"}
+    qty-max: {name: "<yellow>Maximum</yellow>", lore: ["<gray>Sell: everything you have. Buy: the order limit.</gray>"]}
+    qty-input: {name: "<yellow>Quantity: <qty></yellow>", lore: ["<gray>Click to type a quantity.</gray>"]}
+    price-minus-10: {name: "<gold>Price -10</gold>"}
+    price-minus-1: {name: "<gold>Price -1</gold>"}
+    price-plus-1: {name: "<aqua>Price +1</aqua>"}
+    price-plus-10: {name: "<aqua>Price +10</aqua>"}
+    price-input: {name: "<yellow>Unit price: <price></yellow>", lore: ["<gray>Click to type a price.</gray>"]}
+    confirm: {name: "<green>Continue</green>", lore: ["<gray>Total: <total></gray>"]}
+  confirm:
+    title: "<dark_gray>Confirm order</dark_gray>"
+    summary:
+      lore-buy:
+        - "<gray>Buy <yellow><qty>×</yellow> at <price> each.</gray>"
+        - "<gray><total> is reserved now; the unused part comes back.</gray>"
+      lore-sell:
+        - "<gray>Sell <yellow><qty>×</yellow> at <price> each.</gray>"
+        - "<gray>The items leave your inventory now.</gray>"
+      fill: ["<green><fill> trade right away for <cost>.</green>"]
+      own-cross: ["<aqua>Your own opposite order is in range and will be skipped.</aqua>"]
+    confirm: {name: "<green>Place order</green>", lore: ["<gray><side> <qty>× at <price></gray>"]}
+    cancel: {name: "<red>Back</red>"}
+  orders:
+    title: "<dark_gray>My orders</dark_gray>"
+    shift-to-cancel: "<yellow>Shift-click an order to cancel it.</yellow>"
+    empty: {name: "<gray>You have no active orders.</gray>"}
+    entry:
+      - "<gray>#<id> <side></gray>"
+      - "<gray>Left: <yellow><remaining></yellow>/<qty> <dark_gray>(<percent>% filled)</dark_gray></gray>"
+      - "<gray>Unit price: <price></gray>"
+      - "<gray>Reserved: <reserved></gray>"
+      - "<red>Shift-click to cancel.</red>"
+  history:
+    title: "<dark_gray>History</dark_gray>"
+    empty: {name: "<gray>No trades yet.</gray>"}
+    filter: {name: "<yellow>Showing: <filter></yellow>", lore: ["<gray>Click to change.</gray>"]}
+    filters:
+      all: "all"
+      bought: "bought"
+      sold: "sold"
+    entry-bought:
+      - "<aqua>Bought</aqua> <yellow><qty>×</yellow> <gray>at</gray> <price>"
+      - "<gray>Total: <total></gray>"
+      - "<dark_gray><time></dark_gray>"
+    entry-sold:
+      - "<light_purple>Sold</light_purple> <yellow><qty>×</yellow> <gray>at</gray> <price>"
+      - "<gray>Total: <total></gray>"
+      - "<dark_gray><time></dark_gray>"
+  mailbox:
+    title: "<dark_gray>Mailbox</dark_gray>"
+    empty: {name: "<gray>Your mailbox is empty.</gray>"}
+    claim-all: {name: "<green>Collect all</green>", lore: ["<gray><count> entries</gray>"]}
+    money:
+      name: "<gold><amount></gold>"
+      lore: ["<gray><reason></gray>", "<yellow>Click to collect.</yellow>"]
+    item:
+      lore: ["<gray><qty>× · <reason></gray>", "<yellow>Click to collect.</yellow>"]
+    review:
+      name: "<yellow>Under review</yellow>"
+      lore: ["<gray>An admin is checking this entry (#<id>).</gray>", "<gray>Nothing will be paid twice.</gray>"]
+  language:
+    title: "<dark_gray>Language</dark_gray>"
+    current:
+      lore: ["<green>Selected</green>"]
+    other:
+      lore: ["<yellow>Click to select.</yellow>"]

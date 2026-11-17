@@ -126,3 +126,147 @@ admin:
   resolve-failed: "<red>Çözülemedi: <error></red>"
   orphan-markers: "<red><player> oyuncusunda journal kaydı olmayan <count> işaretçi var: <list>. Silmeden önce yedekleri kontrol edin.</red>"
   usage: "<gray>/pazaradmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [adet]</gray>"
+
+# --- menüler (düzenler menus/*.yml dosyalarında) --------------------------------------------------------
+menu:
+  prompt:
+    search: "<yellow>Aranacak kelimeyi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    quantity: "<yellow>Adedi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    price: "<yellow>Birim fiyatı sohbete yazın, örn. 12.50</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+  common:
+    none: "<gray>yok</gray>"
+    back: {name: "<yellow>Geri</yellow>"}
+    close: {name: "<red>Kapat</red>"}
+    refresh: {name: "<yellow>Yenile</yellow>"}
+    previous: {name: "<yellow>Önceki sayfa</yellow>", lore: ["<gray>Sayfa <page>/<pages></gray>"]}
+    next: {name: "<yellow>Sonraki sayfa</yellow>", lore: ["<gray>Sayfa <page>/<pages></gray>"]}
+    loading: {name: "<gray>Yükleniyor…</gray>"}
+    empty: {name: "<gray>Burada henüz bir şey yok.</gray>"}
+    search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp sohbete yazın.</gray>"]}
+    clear-search: {name: "<yellow>Aramayı temizle</yellow>"}
+  main:
+    title: "<dark_gray>Eldros Pazar</dark_gray>"
+    browse: {name: "<gold>Pazara göz at</gold>", lore: ["<gray>Açık alış ve satış emri olan eşyalar.</gray>"]}
+    create: {name: "<gold>Yeni emir</gold>", lore: ["<gray>Bir eşya seçip alış veya satış emri verin.</gray>"]}
+    orders: {name: "<gold>Emirlerim</gold>", lore: ["<gray>Aktif emirleriniz; buradan iptal edebilirsiniz.</gray>"]}
+    history: {name: "<gold>Geçmiş</gold>", lore: ["<gray>Geçmiş alım satımlarınız.</gray>"]}
+    mailbox: {name: "<gold>Posta kutusu</gold>", lore: ["<gray>Sizi bekleyen: <yellow><count></yellow></gray>", "<gray>Alınan eşyalar, kazançlar ve iadeler.</gray>"]}
+    language: {name: "<gold>Dil</gold>", lore: ["<gray>Şu an: <white><language></white></gray>"]}
+    close: {name: "<red>Kapat</red>"}
+    safe-mode: {name: "<red>Pazar bakım için duraklatıldı</red>", lore: ["<gray>Paranız ve eşyalarınız güvende.</gray>", "<gray>Yeni emir ve teslim alma duraklatıldı.</gray>"]}
+  browse:
+    title: "<dark_gray>Pazar <search></dark_gray>"
+    catalog: {name: "<gold>Yeni emir</gold>", lore: ["<gray>Katalogdan herhangi bir eşya seçin.</gray>"]}
+    empty: {name: "<gray>Henüz açık emir yok.</gray>", lore: ["<gray>İlk siz olun: <yellow>Yeni emir</yellow>.</gray>"]}
+    entry:
+      - "<gray>En düşük satış: <best-ask> <dark_gray>(<ask-qty> adet)</dark_gray></gray>"
+      - "<gray>En yüksek alış: <best-bid> <dark_gray>(<bid-qty> adet)</dark_gray></gray>"
+      - "<dark_gray><orders> emir</dark_gray>"
+      - "<yellow>Emir defterini açmak için tıklayın.</yellow>"
+  catalog:
+    title: "<dark_gray>Katalog <search></dark_gray>"
+    held-item: {name: "<gold>Elinizdeki eşya</gold>", lore: ["<gray>Özel verili eşyalar için:</gray>", "<gray>büyülü, isimli, iksir…</gray>"]}
+    empty: {name: "<gray>Eşleşen eşya yok.</gray>"}
+    entry: ["<yellow>Emir defterini açmak için tıklayın.</yellow>"]
+  book:
+    title: "<dark_gray>Emir defteri: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray>En düşük satış: <best-ask></gray>"
+        - "<gray>En yüksek alış: <best-bid></gray>"
+    ask:
+      name: "<red>Satış teklifi: <price></red>"
+      lore: ["<gray><orders> emirde <qty> adet</gray>", "<yellow>Bu fiyattan almak için tıklayın.</yellow>"]
+    bid:
+      name: "<green>Alış teklifi: <price></green>"
+      lore: ["<gray><orders> emirde <qty> adet</gray>", "<yellow>Bu fiyattan satmak için tıklayın.</yellow>"]
+    own:
+      lore: ["<aqua>Bunların <own> tanesi sizin (kendi emirlerinizle eşleşmez).</aqua>"]
+    buy: {name: "<green>Alış emri ver</green>", lore: ["<gray>Para, emir dolana veya iptal edilene kadar ayrılır.</gray>"]}
+    sell: {name: "<gold>Satış emri ver</gold>", lore: ["<gray>Eşyalar satılana veya iptal edilene kadar envanterinizden alınır.</gray>"]}
+    empty: {name: "<gray>Bu eşya için henüz emir yok.</gray>", lore: ["<gray>İlk emri aşağıdan verin.</gray>"]}
+  create:
+    title: "<dark_gray>Yeni emir: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray>Yön: <side></gray>"
+        - "<gray>Adet: <yellow><qty></yellow></gray>"
+        - "<gray>Birim fiyat: <price></gray>"
+        - "<gray>Toplam: <total></gray>"
+    preview-loading: ["<dark_gray>Defter kontrol ediliyor…</dark_gray>"]
+    preview: ["<green><qty> adetten <fill> tanesi hemen <cost> karşılığında işlem görür.</green>"]
+    preview-none: ["<gray>Hemen işlem görecek bir şey yok; emir defterde bekler.</gray>"]
+    own-cross: ["<aqua>Kendi karşı emriniz bu aralıkta; atlanır.</aqua>"]
+    owned: ["<gray>Bu eşyadan <yellow><owned></yellow> adet sizde var.</gray>"]
+    side: {name: "<white>Yön: <side></white>", lore: ["<gray>Alış/satış arasında geçmek için tıklayın.</gray>"]}
+    qty-minus-64: {name: "<red>-64</red>"}
+    qty-minus-10: {name: "<red>-10</red>"}
+    qty-minus-1: {name: "<red>-1</red>"}
+    qty-plus-1: {name: "<green>+1</green>"}
+    qty-plus-10: {name: "<green>+10</green>"}
+    qty-plus-64: {name: "<green>+64</green>"}
+    qty-max: {name: "<yellow>En fazla</yellow>", lore: ["<gray>Satış: elinizdeki tümü. Alış: emir sınırı.</gray>"]}
+    qty-input: {name: "<yellow>Adet: <qty></yellow>", lore: ["<gray>Adet yazmak için tıklayın.</gray>"]}
+    price-minus-10: {name: "<gold>Fiyat -10</gold>"}
+    price-minus-1: {name: "<gold>Fiyat -1</gold>"}
+    price-plus-1: {name: "<aqua>Fiyat +1</aqua>"}
+    price-plus-10: {name: "<aqua>Fiyat +10</aqua>"}
+    price-input: {name: "<yellow>Birim fiyat: <price></yellow>", lore: ["<gray>Fiyat yazmak için tıklayın.</gray>"]}
+    confirm: {name: "<green>Devam</green>", lore: ["<gray>Toplam: <total></gray>"]}
+  confirm:
+    title: "<dark_gray>Emri onayla</dark_gray>"
+    summary:
+      lore-buy:
+        - "<gray>Tanesi <price> fiyattan <yellow><qty>×</yellow> al.</gray>"
+        - "<gray><total> şimdi ayrılır; kullanılmayan kısım geri döner.</gray>"
+      lore-sell:
+        - "<gray>Tanesi <price> fiyattan <yellow><qty>×</yellow> sat.</gray>"
+        - "<gray>Eşyalar şimdi envanterinizden alınır.</gray>"
+      fill: ["<green><fill> adet hemen <cost> karşılığında işlem görür.</green>"]
+      own-cross: ["<aqua>Kendi karşı emriniz bu aralıkta; atlanacak.</aqua>"]
+    confirm: {name: "<green>Emri ver</green>", lore: ["<gray><side> <qty>× · <price></gray>"]}
+    cancel: {name: "<red>Geri</red>"}
+  orders:
+    title: "<dark_gray>Emirlerim</dark_gray>"
+    shift-to-cancel: "<yellow>İptal etmek için emre Shift ile tıklayın.</yellow>"
+    empty: {name: "<gray>Aktif emriniz yok.</gray>"}
+    entry:
+      - "<gray>#<id> <side></gray>"
+      - "<gray>Kalan: <yellow><remaining></yellow>/<qty> <dark_gray>(%<percent> doldu)</dark_gray></gray>"
+      - "<gray>Birim fiyat: <price></gray>"
+      - "<gray>Ayrılan: <reserved></gray>"
+      - "<red>İptal için Shift ile tıklayın.</red>"
+  history:
+    title: "<dark_gray>Geçmiş</dark_gray>"
+    empty: {name: "<gray>Henüz alım satım yok.</gray>"}
+    filter: {name: "<yellow>Gösterilen: <filter></yellow>", lore: ["<gray>Değiştirmek için tıklayın.</gray>"]}
+    filters:
+      all: "tümü"
+      bought: "alınanlar"
+      sold: "satılanlar"
+    entry-bought:
+      - "<aqua>Alındı</aqua> <yellow><qty>×</yellow> <gray>·</gray> <price>"
+      - "<gray>Toplam: <total></gray>"
+      - "<dark_gray><time></dark_gray>"
+    entry-sold:
+      - "<light_purple>Satıldı</light_purple> <yellow><qty>×</yellow> <gray>·</gray> <price>"
+      - "<gray>Toplam: <total></gray>"
+      - "<dark_gray><time></dark_gray>"
+  mailbox:
+    title: "<dark_gray>Posta kutusu</dark_gray>"
+    empty: {name: "<gray>Posta kutunuz boş.</gray>"}
+    claim-all: {name: "<green>Hepsini topla</green>", lore: ["<gray><count> kayıt</gray>"]}
+    money:
+      name: "<gold><amount></gold>"
+      lore: ["<gray><reason></gray>", "<yellow>Toplamak için tıklayın.</yellow>"]
+    item:
+      lore: ["<gray><qty>× · <reason></gray>", "<yellow>Toplamak için tıklayın.</yellow>"]
+    review:
+      name: "<yellow>İncelemede</yellow>"
+      lore: ["<gray>Bir yetkili bu kaydı kontrol ediyor (#<id>).</gray>", "<gray>Hiçbir şey iki kez ödenmez.</gray>"]
+  language:
+    title: "<dark_gray>Dil</dark_gray>"
+    current:
+      lore: ["<green>Seçili</green>"]
+    other:
+      lore: ["<yellow>Seçmek için tıklayın.</yellow>"]

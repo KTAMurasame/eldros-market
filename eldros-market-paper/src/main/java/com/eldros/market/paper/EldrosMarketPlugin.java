@@ -1,8 +1,14 @@
 package com.eldros.market.paper;
 
+import com.eldros.market.paper.action.MarketActions;
 import com.eldros.market.paper.command.AdminCommand;
 import com.eldros.market.paper.command.MarketCommand;
 import com.eldros.market.paper.config.PluginSettings;
+import com.eldros.market.paper.gui.ChatPrompt;
+import com.eldros.market.paper.gui.Icons;
+import com.eldros.market.paper.gui.MenuConfigs;
+import com.eldros.market.paper.gui.MenuListener;
+import com.eldros.market.paper.gui.Menus;
 import com.eldros.market.paper.i18n.Messages;
 import com.eldros.market.paper.listener.PlayerListener;
 import org.bukkit.command.PluginCommand;
@@ -40,10 +46,19 @@ public final class EldrosMarketPlugin extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        register("market", new MarketCommand(runtime));
+        menuConfigs = new MenuConfigs(this);
+        menuConfigs.load();
+        MarketActions actions = new MarketActions(runtime);
+        Icons icons = new Icons(this);
+        ChatPrompt prompt = new ChatPrompt(this);
+        Menus menus = new Menus(actions, menuConfigs, icons, prompt);
+        register("market", new MarketCommand(actions, menus));
         register("marketadmin", new AdminCommand(runtime));
         getServer().getPluginManager().registerEvents(new PlayerListener(runtime), this);
+        getServer().getPluginManager().registerEvents(new MenuListener(prompt, icons, getLogger()), this);
     }
+
+    private MenuConfigs menuConfigs;
 
     private void register(String name, TabExecutor executor) {
         PluginCommand command = getCommand(name);
@@ -73,6 +88,7 @@ public final class EldrosMarketPlugin extends JavaPlugin {
             throw new IllegalStateException("economy.decimal-places cannot change at runtime (stored amounts depend on it)");
         }
         messages.load(next.defaultLanguage(), next.useClientLocale());
+        menuConfigs.load();
         runtime.applySettings(next);
     }
 }

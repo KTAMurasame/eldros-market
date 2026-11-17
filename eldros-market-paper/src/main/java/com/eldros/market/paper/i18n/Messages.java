@@ -180,6 +180,21 @@ public final class Messages {
         return MM.deserialize(raw(language, key), TagResolver.resolver(resolvers));
     }
 
+    /** A list key (e.g. menu lore) rendered line by line; a plain string key gives one line, a missing key none. */
+    public List<Component> renderList(String language, String key, TagResolver... resolvers) {
+        TagResolver all = TagResolver.resolver(resolvers);
+        for (String lang : new String[] {language, defaultLanguage, "en_US"}) {
+            YamlConfiguration y = lang == null ? null : languages.get(lang);
+            if (y != null && y.isList(key)) {
+                return y.getStringList(key).stream().map(line -> MM.deserialize(line, all)).toList();
+            }
+            if (y != null && y.isString(key)) {
+                return List.of(MM.deserialize(y.getString(key), all));
+            }
+        }
+        return List.of();
+    }
+
     public Component render(CommandSender sender, String key, TagResolver... resolvers) {
         return render(languageOf(sender), key, resolvers);
     }
