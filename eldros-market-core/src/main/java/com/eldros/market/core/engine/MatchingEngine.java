@@ -111,13 +111,15 @@ public final class MatchingEngine {
             throw new IllegalStateException("order " + orderId + " is not active");
         }
         long items = order.side() == OrderSide.SELL ? order.remaining() : 0;
-        return new CancelPlan(order.id(), order.owner(), order.side(), order.template(), order.escrow(), items, finalStatus);
+        return new CancelPlan(order.id(), order.owner(), order.side(), order.template(), order.escrow(), items,
+                order.remaining(), finalStatus);
     }
 
     public void applyCancel(CancelPlan plan) {
         Order order = active.get(plan.orderId());
         long items = order == null ? -1 : (order.side() == OrderSide.SELL ? order.remaining() : 0);
-        if (order == null || !order.escrow().equals(plan.refundMoney()) || items != plan.refundItems()) {
+        if (order == null || !order.escrow().equals(plan.refundMoney()) || items != plan.refundItems()
+                || order.remaining() != plan.remaining()) {
             throw new IllegalStateException("stale cancel plan for order " + plan.orderId());
         }
         books.get(order.template()).remove(order);

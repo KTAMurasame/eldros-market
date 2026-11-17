@@ -47,6 +47,21 @@ public final class Order {
         return new Order(id, owner, side, template, unitPrice, quantity, seq, expiresAt);
     }
 
+    /**
+     * An ACTIVE order loaded from storage. The stored escrow is taken as is, so a corrupted row stays visible to
+     * the storage invariant check (I1) instead of being silently recomputed.
+     */
+    public static Order restore(long id, PlayerId owner, OrderSide side, TemplateId template, Money unitPrice,
+                                long quantity, long filled, long seq, Money escrow, Long expiresAt) {
+        if (quantity <= 0 || filled < 0 || filled >= quantity) {
+            throw new IllegalArgumentException("not a restorable active order: " + id + " (" + filled + "/" + quantity + ")");
+        }
+        Order order = new Order(id, owner, side, template, unitPrice, quantity, seq, expiresAt);
+        order.filled = filled;
+        order.escrow = escrow;
+        return order;
+    }
+
     /** Records a fill. A buy order's escrow always drops by {@code quantity * own limit price} (I1). */
     public void applyFill(long fillQuantity) {
         if (status != OrderStatus.ACTIVE || fillQuantity <= 0 || fillQuantity > remaining()) {
