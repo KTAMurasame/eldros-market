@@ -1,0 +1,128 @@
+# Eldros Market — Türkçe. MiniMessage biçimi: https://docs.advntr.dev/minimessage/format.html
+# <köşeli parantez> içindeki yer tutucuları eklenti doldurur. Oyuncu metinleri (eşya isimleri) asla etiket olarak işlenmez.
+lang-version: 1
+language-name: "Türkçe"
+
+prefix: "<dark_gray>[<gold>Pazar</gold>]</dark_gray> "
+
+format:
+  decimal-separator: ","
+  grouping-separator: "."
+  money: "<gold><amount></gold>"
+
+general:
+  player-only: "<red>Bunu yalnızca oyuncular yapabilir.</red>"
+  no-permission: "<red>Bunu yapma izniniz yok.</red>"
+  safe-mode: "<red>Pazar bakım için duraklatıldı. Paranız ve eşyalarınız güvende. Lütfen daha sonra tekrar deneyin.</red>"
+  error: "<red>Bir şeyler ters gitti. Hiçbir ücret alınmadı. Tekrarlarsa bir yetkiliye bildirin.</red>"
+  unknown-subcommand: "<red>Bilinmeyen komut. <yellow>/pazar yardım</yellow> yazın.</red>"
+  loading: "<gray>Yükleniyor…</gray>"
+  busy: "<yellow>Pazar şu an yoğun. Lütfen birazdan tekrar deneyin.</yellow>"
+
+help:
+  - "<gold>Eldros Pazar</gold>"
+  - "<yellow>/pazar</yellow> <gray>— pazarı açar</gray>"
+  - "<yellow>/pazar sat <adet> <fiyat></yellow> <gray>— elinizdeki eşyayı satışa koyar</gray>"
+  - "<yellow>/pazar al <adet> <fiyat> [eşya]</yellow> <gray>— elinizdeki veya adı verilen eşya için alış emri verir</gray>"
+  - "<yellow>/pazar emirler</yellow> <gray>— aktif emirleriniz</gray>"
+  - "<yellow>/pazar iptal <no></yellow> <gray>— emrinizi iptal eder</gray>"
+  - "<yellow>/pazar posta</yellow> <gray>— sizi bekleyen eşya ve paralar</gray>"
+  - "<yellow>/pazar topla [hepsi]</yellow> <gray>— posta kutunuzdan toplar</gray>"
+  - "<yellow>/pazar dil <en_US|tr_TR></yellow> <gray>— dilinizi değiştirir</gray>"
+
+validation:
+  empty: "<red>Lütfen bir değer girin.</red>"
+  not_a_number: "<red><yellow>12</yellow> veya <yellow>12.50</yellow> gibi düz sayılar kullanın (ondalık için nokta).</red>"
+  negative: "<red>Değer negatif olamaz.</red>"
+  too_many_decimals: "<red>Çok fazla ondalık basamak.</red>"
+  too_large: "<red>Bu sayı çok büyük.</red>"
+  quantity_invalid: "<red>Adet en az 1 olmalı.</red>"
+  quantity_too_large: "<red>Bir emirde en fazla <yellow><max></yellow> eşya olabilir.</red>"
+  price_too_low: "<red>Birim fiyat en az <min> olmalı.</red>"
+  price_too_high: "<red>Birim fiyat en fazla <max> olabilir.</red>"
+  total_overflow: "<red>Bu emir çok büyük.</red>"
+  too_many_orders: "<red>Zaten en fazla <yellow><max></yellow> aktif emriniz var.</red>"
+
+item:
+  hold-item: "<red>Satmak/almak istediğiniz eşyayı ana elinizde tutun.</red>"
+  unknown: "<red>Bilinmeyen eşya: <yellow><name></yellow>.</red>"
+  blocked: "<red>Bu eşya pazarda satılamaz.</red>"
+  filled-container: "<red>Önce kabı boşaltın; dolu kaplar satılamaz.</red>"
+
+reason:
+  insufficient_funds: "<red>Bu emir için yeterli paranız yok.</red>"
+  not_enough_items: "<red>Bu eşyadan o kadar yok.</red>"
+  inventory_full: "<red>Envanteriniz dolu. Yer açıp tekrar deneyin.</red>"
+  not_available: "<red>Bu artık mevcut değil.</red>"
+  not_owner: "<red>Bu emir size ait değil.</red>"
+  safe_mode: "<red>Pazar bakım için duraklatıldı. Paranız ve eşyalarınız güvende.</red>"
+  quarantined: "<yellow>Ödeme sonucu doğrulanamadı. Bir yetkili inceleyecek — hiçbir şey iki kez alınmaz.</yellow>"
+
+order:
+  created-buy: "<green>Alış emri verildi:</green> <yellow><qty>×</yellow> <item>, tanesi <price> (ayrılan: <total>)."
+  created-sell: "<green>Satış emri verildi:</green> <yellow><qty>×</yellow> <item>, tanesi <price>."
+  filled-now: "<green><qty> adedin <filled> tanesi hemen eşleşti.</green> <yellow>/pazar posta</yellow> ile bakın."
+  cancelled: "<green>#<id> numaralı emir iptal edildi.</green> Kalanı posta kutunuza gönderildi."
+  self-cross: "<gray>Not: kendi emirleriniz birbiriyle eşleşmez.</gray>"
+
+orders:
+  header: "<gold>Aktif emirleriniz</gold>"
+  empty: "<gray>Aktif emriniz yok.</gray>"
+  entry: "<gray>#<id></gray> <side> <yellow><remaining>/<qty>×</yellow> <item> <gray>@</gray> <price>"
+  side-buy: "<aqua>ALIŞ</aqua>"
+  side-sell: "<light_purple>SATIŞ</light_purple>"
+
+mailbox:
+  header: "<gold>Posta kutunuz</gold>"
+  empty: "<gray>Posta kutunuz boş.</gray>"
+  entry-money: "<gray>#<id></gray> <amount> <gray>(<reason>)</gray>"
+  entry-item: "<gray>#<id></gray> <yellow><qty>×</yellow> <item> <gray>(<reason>)</gray>"
+  waiting: "<yellow>Posta kutunuzda <count> kayıt bekliyor.</yellow> <gray>/pazar posta</gray>"
+  reasons:
+    TRADE_ITEM: "satın alındı"
+    TRADE_MONEY: "satıldı"
+    PRICE_IMPROVEMENT: "teklifinizden ucuza"
+    CANCEL_REFUND: "iptal edilen emir"
+    EXPIRE_REFUND: "süresi dolan emir"
+    RECOVERY_REFUND: "yeniden başlatma sonrası iade"
+    RESOLVED_REFUND: "yetkili kararı"
+
+claim:
+  money: "<green><amount> toplandı.</green>"
+  items: "<green><yellow><qty>×</yellow> <item> toplandı.</green>"
+  partial: "<yellow>Envanterinize yalnızca <qty> adet sığdı; kalanı posta kutunuzda.</yellow>"
+  nothing: "<gray>Toplanacak bir şey yok.</gray>"
+
+lang:
+  set: "<green>Dil <name> olarak ayarlandı.</green>"
+  unknown: "<red>Bilinmeyen dil. Mevcut diller: <list></red>"
+
+notify:
+  trade:
+    sold: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla satıldı.</green> <gray>/pazar posta</gray>"
+    bought: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla alındı.</green> <gray>/pazar posta</gray>"
+  order:
+    cancelled: "<gray><item> emriniz iptal edildi; <qty> adet posta kutunuza gönderildi.</gray>"
+    expired: "<yellow><item> emrinizin süresi doldu; kalanı posta kutunuzda.</yellow>"
+  recovery:
+    refund: "<yellow>Sunucu yeniden başladıktan sonra <amount> posta kutunuza iade edildi.</yellow>"
+    items: "<yellow>Sunucu yeniden başladıktan sonra <qty>× <item> posta kutunuza iade edildi.</yellow>"
+    review: "<yellow>Tamamlanmamış bir pazar işleminiz yetkili tarafından inceleniyor. Hiçbir şey iki kez alınmaz.</yellow>"
+
+admin:
+  reloaded: "<green>Ayarlar ve diller yeniden yüklendi.</green>"
+  reload-failed: "<red>Yeniden yükleme başarısız; önceki ayarlar geçerli: <error></red>"
+  verify-ok: "<green>Tüm pazar değişmezleri sağlanıyor.</green>"
+  verify-fail: "<red><count> sorun bulundu:</red>"
+  verify-line: "<red>- <line></red>"
+  safemode-on: "<yellow>Güvenli mod AÇIK: yeni işlemler reddediliyor.</yellow>"
+  safemode-off: "<green>Güvenli mod KAPALI: pazar yeniden yüklendi ve kurtarıldı.</green>"
+  safemode-still: "<red>Veritabanı hâlâ yazmayı reddediyor; güvenli mod açık kalıyor.</red>"
+  safemode-status: "<gray>Güvenli mod: <state></gray>"
+  recovery-header: "<gold>Karantinadaki işlemler</gold>"
+  recovery-none: "<green>Karantinada işlem yok.</green>"
+  recovery-entry: "<gray><op></gray> <yellow><type></yellow> <player> <amount> <gray>(<reason>)</gray>"
+  resolved: "<green><op> işlemi <decision> olarak çözüldü.</green>"
+  resolve-failed: "<red>Çözülemedi: <error></red>"
+  orphan-markers: "<red><player> oyuncusunda journal kaydı olmayan <count> işaretçi var: <list>. Silmeden önce yedekleri kontrol edin.</red>"
+  usage: "<gray>/pazaradmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [adet]</gray>"

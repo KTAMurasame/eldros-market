@@ -103,12 +103,12 @@ public final class JdbcJournal {
     // --- mailbox claim transitions -----------------------------------------------------------------
 
     public record MailboxRow(long id, PlayerId owner, String kind, TemplateId template, long qty, Money amount,
-                             String status, String claimOpId, long version) {
+                             String status, String claimOpId, long version, String reason) {
     }
 
     public Optional<MailboxRow> mailbox(Connection c, long id) throws SQLException {
         try (PreparedStatement p = c.prepareStatement("SELECT id, owner_uuid, kind, template_id, qty, amount, status, claim_op_id, "
-                + "version FROM mailbox WHERE id = ?")) {
+                + "version, reason FROM mailbox WHERE id = ?")) {
             p.setLong(1, id);
             try (ResultSet rs = p.executeQuery()) {
                 if (!rs.next()) {
@@ -117,7 +117,7 @@ public final class JdbcJournal {
                 long template = rs.getLong(4);
                 TemplateId t = rs.wasNull() ? null : new TemplateId(template);
                 return Optional.of(new MailboxRow(rs.getLong(1), new PlayerId(UUID.fromString(rs.getString(2))), rs.getString(3), t,
-                        rs.getLong(5), Money.ofMinor(rs.getLong(6)), rs.getString(7), rs.getString(8), rs.getLong(9)));
+                        rs.getLong(5), Money.ofMinor(rs.getLong(6)), rs.getString(7), rs.getString(8), rs.getLong(9), rs.getString(10)));
             }
         }
     }

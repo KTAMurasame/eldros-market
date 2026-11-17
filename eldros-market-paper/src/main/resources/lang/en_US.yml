@@ -1,0 +1,128 @@
+# Eldros Market — English. MiniMessage format: https://docs.advntr.dev/minimessage/format.html
+# Placeholders in <angle brackets> are filled by the plugin. Player-provided text (item names) is never parsed as tags.
+lang-version: 1
+language-name: "English"
+
+prefix: "<dark_gray>[<gold>Market</gold>]</dark_gray> "
+
+format:
+  decimal-separator: "."
+  grouping-separator: ","
+  money: "<gold><amount></gold>"
+
+general:
+  player-only: "<red>Only players can do that.</red>"
+  no-permission: "<red>You do not have permission to do that.</red>"
+  safe-mode: "<red>The market is paused for maintenance. Your money and items are safe. Please try again later.</red>"
+  error: "<red>Something went wrong. Nothing was charged. Please tell an admin if it happens again.</red>"
+  unknown-subcommand: "<red>Unknown command. Use <yellow>/market help</yellow>.</red>"
+  loading: "<gray>Loading…</gray>"
+  busy: "<yellow>The market is busy right now. Please try again in a moment.</yellow>"
+
+help:
+  - "<gold>Eldros Market</gold>"
+  - "<yellow>/market</yellow> <gray>— open the market</gray>"
+  - "<yellow>/market sell <qty> <price></yellow> <gray>— sell the item in your hand</gray>"
+  - "<yellow>/market buy <qty> <price> [item]</yellow> <gray>— buy the item in your hand, or a named item</gray>"
+  - "<yellow>/market orders</yellow> <gray>— your active orders</gray>"
+  - "<yellow>/market cancel <id></yellow> <gray>— cancel one of your orders</gray>"
+  - "<yellow>/market mailbox</yellow> <gray>— items and money waiting for you</gray>"
+  - "<yellow>/market claim [all]</yellow> <gray>— collect from your mailbox</gray>"
+  - "<yellow>/market lang <en_US|tr_TR></yellow> <gray>— change your language</gray>"
+
+validation:
+  empty: "<red>Please enter a value.</red>"
+  not_a_number: "<red>Use plain numbers like <yellow>12</yellow> or <yellow>12.50</yellow>.</red>"
+  negative: "<red>The value cannot be negative.</red>"
+  too_many_decimals: "<red>Too many decimal places.</red>"
+  too_large: "<red>That number is too large.</red>"
+  quantity_invalid: "<red>The quantity must be at least 1.</red>"
+  quantity_too_large: "<red>At most <yellow><max></yellow> items per order.</red>"
+  price_too_low: "<red>The price per item must be at least <min>.</red>"
+  price_too_high: "<red>The price per item can be at most <max>.</red>"
+  total_overflow: "<red>That order is too large.</red>"
+  too_many_orders: "<red>You already have the maximum of <yellow><max></yellow> active orders.</red>"
+
+item:
+  hold-item: "<red>Hold the item you want to trade in your main hand.</red>"
+  unknown: "<red>Unknown item <yellow><name></yellow>.</red>"
+  blocked: "<red>This item cannot be traded on the market.</red>"
+  filled-container: "<red>Empty the container first; filled containers cannot be traded.</red>"
+
+reason:
+  insufficient_funds: "<red>You do not have enough money for this order.</red>"
+  not_enough_items: "<red>You do not have that many of this item.</red>"
+  inventory_full: "<red>Your inventory is full. Make some room and try again.</red>"
+  not_available: "<red>That is no longer available.</red>"
+  not_owner: "<red>That is not your order.</red>"
+  safe_mode: "<red>The market is paused for maintenance. Your money and items are safe.</red>"
+  quarantined: "<yellow>We could not confirm the payment result. An admin will review it — nothing will be charged twice.</yellow>"
+
+order:
+  created-buy: "<green>Buy order placed:</green> <yellow><qty>×</yellow> <item> at <price> each (reserved <total>)."
+  created-sell: "<green>Sell order placed:</green> <yellow><qty>×</yellow> <item> at <price> each."
+  filled-now: "<green><filled> of <qty> matched immediately.</green> Check <yellow>/market mailbox</yellow>."
+  cancelled: "<green>Order #<id> cancelled.</green> The rest went to your mailbox."
+  self-cross: "<gray>Note: your own orders never match each other.</gray>"
+
+orders:
+  header: "<gold>Your active orders</gold>"
+  empty: "<gray>You have no active orders.</gray>"
+  entry: "<gray>#<id></gray> <side> <yellow><remaining>/<qty>×</yellow> <item> <gray>@</gray> <price>"
+  side-buy: "<aqua>BUY</aqua>"
+  side-sell: "<light_purple>SELL</light_purple>"
+
+mailbox:
+  header: "<gold>Your mailbox</gold>"
+  empty: "<gray>Your mailbox is empty.</gray>"
+  entry-money: "<gray>#<id></gray> <amount> <gray>(<reason>)</gray>"
+  entry-item: "<gray>#<id></gray> <yellow><qty>×</yellow> <item> <gray>(<reason>)</gray>"
+  waiting: "<yellow>You have <count> item(s) waiting in your mailbox.</yellow> <gray>/market mailbox</gray>"
+  reasons:
+    TRADE_ITEM: "bought"
+    TRADE_MONEY: "sold"
+    PRICE_IMPROVEMENT: "cheaper than your bid"
+    CANCEL_REFUND: "cancelled order"
+    EXPIRE_REFUND: "expired order"
+    RECOVERY_REFUND: "recovered after a restart"
+    RESOLVED_REFUND: "resolved by an admin"
+
+claim:
+  money: "<green>Collected <amount>.</green>"
+  items: "<green>Collected <yellow><qty>×</yellow> <item>.</green>"
+  partial: "<yellow>Only <qty> fit in your inventory; the rest stays in your mailbox.</yellow>"
+  nothing: "<gray>Nothing to collect.</gray>"
+
+lang:
+  set: "<green>Language set to <name>.</green>"
+  unknown: "<red>Unknown language. Available: <list></red>"
+
+notify:
+  trade:
+    sold: "<green>Sold <yellow><qty>×</yellow> <item> for <price> each.</green> <gray>/market mailbox</gray>"
+    bought: "<green>Bought <yellow><qty>×</yellow> <item> for <price> each.</green> <gray>/market mailbox</gray>"
+  order:
+    cancelled: "<gray>Your order for <item> was cancelled; <qty> returned to your mailbox.</gray>"
+    expired: "<yellow>Your order for <item> expired; the rest is in your mailbox.</yellow>"
+  recovery:
+    refund: "<yellow>After a server restart, <amount> was returned to your mailbox.</yellow>"
+    items: "<yellow>After a server restart, <qty>× <item> were returned to your mailbox.</yellow>"
+    review: "<yellow>An unfinished market action is being reviewed by an admin. Nothing will be charged twice.</yellow>"
+
+admin:
+  reloaded: "<green>Configuration and languages reloaded.</green>"
+  reload-failed: "<red>Reload failed; the previous settings stay active: <error></red>"
+  verify-ok: "<green>All market invariants hold.</green>"
+  verify-fail: "<red><count> problem(s):</red>"
+  verify-line: "<red>- <line></red>"
+  safemode-on: "<yellow>Safe mode ON: new operations are refused.</yellow>"
+  safemode-off: "<green>Safe mode OFF: market reloaded and recovered.</green>"
+  safemode-still: "<red>The database still refuses writes; safe mode stays on.</red>"
+  safemode-status: "<gray>Safe mode: <state></gray>"
+  recovery-header: "<gold>Quarantined operations</gold>"
+  recovery-none: "<green>No quarantined operations.</green>"
+  recovery-entry: "<gray><op></gray> <yellow><type></yellow> <player> <amount> <gray>(<reason>)</gray>"
+  resolved: "<green>Resolved <op> as <decision>.</green>"
+  resolve-failed: "<red>Could not resolve: <error></red>"
+  orphan-markers: "<red>Player <player> carries <count> marker(s) with no journal entry: <list>. Check backups before removing.</red>"
+  usage: "<gray>/marketadmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [qty]</gray>"

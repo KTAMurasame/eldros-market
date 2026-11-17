@@ -13,6 +13,7 @@
   <modules>
     <module>eldros-market-api</module>
     <module>eldros-market-core</module>
+    <module>eldros-market-paper</module>
   </modules>
 
   <properties>
@@ -53,6 +54,11 @@
       <dependency>
         <groupId>com.eldros</groupId>
         <artifactId>eldros-market-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.eldros</groupId>
+        <artifactId>eldros-market-core</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

@@ -1,0 +1,53 @@
+# Eldros Market configuration.
+# Changes to limits, language and menus apply after /marketadmin reload. Storage settings need a restart.
+config-version: 1
+
+language:
+  # Language used when a player has not picked one: en_US or tr_TR (any file in plugins/EldrosMarket/lang/).
+  default: en_US
+  # Use the player's Minecraft client language when it matches an available language file.
+  use-client-locale: true
+
+economy:
+  # Decimal places of your currency. The economy plugin's own value is only compared for a warning,
+  # because some providers report it wrongly (e.g. -1). 0 = whole coins, 2 = cents.
+  decimal-places: 2
+
+limits:
+  # Price per single item.
+  min-unit-price: "0.01"
+  max-unit-price: "1000000"
+  # Items per order.
+  max-quantity-per-order: 2304
+  # Active orders per player. Grant eldrosmarket.limit.orders.<n> to raise it for a group.
+  default-max-active-orders: 10
+
+orders:
+  expiry:
+    # When enabled, orders end after this many days and their remaining money/items go to the mailbox.
+    enabled: false
+    days: 14
+
+items:
+  # Items that can never be traded (namespaced ids).
+  blacklist:
+    - minecraft:command_block
+    - minecraft:chain_command_block
+    - minecraft:repeating_command_block
+    - minecraft:command_block_minecart
+    - minecraft:structure_block
+    - minecraft:structure_void
+    - minecraft:jigsaw
+    - minecraft:barrier
+    - minecraft:light
+    - minecraft:debug_stick
+    - minecraft:knowledge_book
+    - minecraft:bedrock
+  # Shulker boxes and bundles that still contain items are refused (their contents would be invisible in the market).
+  reject-filled-containers: true
+  # Items carrying data from these plugins (PDC namespaces) are refused, e.g. backpacks whose contents live elsewhere.
+  blocked-pdc-namespaces: []
+
+performance:
+  # Item operations (sell order, item claim) per second across the server. Each saves player data once.
+  item-ops-per-second: 10

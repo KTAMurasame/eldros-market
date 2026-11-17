@@ -213,6 +213,138 @@ public final class JdbcLedger {
         }
     }
 
+    // --- templates, meta, players, order queries (used by the paper module) ---------------------------
+
+    public record TemplateRow(long id, String material, byte[] bytes, int dataVersion, String status) {
+    }
+
+    public List<TemplateRow> loadTemplates(Connection c) throws SQLException {
+        List<TemplateRow> out = new ArrayList<>();
+        try (PreparedStatement p = c.prepareStatement("SELECT id, material, item_bytes, data_version, status FROM item_templates ORDER BY id");
+             ResultSet rs = p.executeQuery()) {
+            while (rs.next()) {
+                out.add(new TemplateRow(rs.getLong(1), rs.getString(2), rs.getBytes(3), rs.getInt(4), rs.getString(5)));
+            }
+        }
+        return out;
+    }
+
+    public java.util.Optional<TemplateId> templateByFingerprint(Connection c, String fingerprint) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("SELECT template_id FROM item_template_fingerprints WHERE fingerprint = ?")) {
+            p.setString(1, fingerprint);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() ? java.util.Optional.of(new TemplateId(rs.getLong(1))) : java.util.Optional.empty();
+            }
+        }
+    }
+
+    /** Adds another fingerprint for an existing template; a fingerprint already known is left as it is. */
+    public void addFingerprint(Connection c, String fingerprint, TemplateId template) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement(
+                "INSERT INTO item_template_fingerprints (fingerprint, template_id) VALUES (?, ?) ON CONFLICT (fingerprint) DO NOTHING")) {
+            p.setString(1, fingerprint);
+            p.setLong(2, template.value());
+            p.executeUpdate();
+        }
+    }
+
+    /** Version upgrade of one template (docs/03 §8.5): keeps the old bytes in history, guarded by the old data version. */
+    public void upgradeTemplate(Connection c, TemplateId template, int oldDataVersion, byte[] newBytes, int newDataVersion, long now)
+            throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("INSERT INTO item_template_history (template_id, old_bytes, old_data_version, migrated_at) "
+                + "SELECT id, item_bytes, data_version, ? FROM item_templates WHERE id = ? AND data_version = ?")) {
+            p.setLong(1, now);
+            p.setLong(2, template.value());
+            p.setInt(3, oldDataVersion);
+            if (p.executeUpdate() != 1) {
+                throw new StaleStateException("template " + template.value() + " is not at data version " + oldDataVersion);
+            }
+        }
+        try (PreparedStatement p = c.prepareStatement("UPDATE item_templates SET item_bytes = ?, data_version = ? WHERE id = ? AND data_version = ?")) {
+            p.setBytes(1, newBytes);
+            p.setInt(2, newDataVersion);
+            p.setLong(3, template.value());
+            p.setInt(4, oldDataVersion);
+            p.executeUpdate();
+        }
+    }
+
+    public void markTemplateInvalid(Connection c, TemplateId template) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("UPDATE item_templates SET status = 'INVALID' WHERE id = ?")) {
+            p.setLong(1, template.value());
+            p.executeUpdate();
+        }
+        try (PreparedStatement p = c.prepareStatement("UPDATE orders SET status = 'FROZEN' WHERE template_id = ? AND status = 'ACTIVE'")) {
+            p.setLong(1, template.value());
+            p.executeUpdate();
+        }
+    }
+
+    public java.util.Optional<String> meta(Connection c, String key) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("SELECT value FROM meta WHERE key = ?")) {
+            p.setString(1, key);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() ? java.util.Optional.of(rs.getString(1)) : java.util.Optional.empty();
+            }
+        }
+    }
+
+    public void setMeta(Connection c, String key, String value) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement(
+                "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")) {
+            p.setString(1, key);
+            p.setString(2, value);
+            p.executeUpdate();
+        }
+    }
+
+    public java.util.Optional<String> playerLocale(Connection c, PlayerId player) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("SELECT locale FROM players WHERE uuid = ?")) {
+            p.setString(1, player.value().toString());
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() ? java.util.Optional.ofNullable(rs.getString(1)) : java.util.Optional.empty();
+            }
+        }
+    }
+
+    public void setPlayerLocale(Connection c, PlayerId player, String name, String locale) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("INSERT INTO players (uuid, last_name, locale) VALUES (?, ?, ?) "
+                + "ON CONFLICT (uuid) DO UPDATE SET last_name = excluded.last_name, locale = excluded.locale")) {
+            p.setString(1, player.value().toString());
+            p.setString(2, name);
+            p.setString(3, locale);
+            p.executeUpdate();
+        }
+    }
+
+    public record OrderRow(long id, OrderSide side, TemplateId template, Money unitPrice, long quantity, long filled, long createdAt) {
+    }
+
+    public List<OrderRow> activeOrdersOf(Connection c, PlayerId player) throws SQLException {
+        List<OrderRow> out = new ArrayList<>();
+        try (PreparedStatement p = c.prepareStatement("SELECT id, side, template_id, unit_price, qty_total, qty_filled, created_at "
+                + "FROM orders WHERE owner_uuid = ? AND status = 'ACTIVE' ORDER BY id")) {
+            p.setString(1, player.value().toString());
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new OrderRow(rs.getLong(1), OrderSide.valueOf(rs.getString(2)), new TemplateId(rs.getLong(3)),
+                            Money.ofMinor(rs.getLong(4)), rs.getLong(5), rs.getLong(6), rs.getLong(7)));
+                }
+            }
+        }
+        return out;
+    }
+
+    public int countActiveOrders(Connection c, PlayerId player) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM orders WHERE owner_uuid = ? AND status = 'ACTIVE'")) {
+            p.setString(1, player.value().toString());
+            try (ResultSet rs = p.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
     public record Notification(long id, String messageKey, List<Long> args) {
     }
 

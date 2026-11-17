@@ -1,0 +1,33 @@
+name: EldrosMarket
+version: '${project.version}'
+main: com.eldros.market.paper.EldrosMarketPlugin
+api-version: '1.21.4'
+description: Player buy and sell orders with an order book, escrow, mailbox and crash recovery.
+authors: [Eldros]
+depend: [Vault]
+libraries:
+  - org.xerial:sqlite-jdbc:${sqlite.fallback.version}
+commands:
+  market:
+    description: Open the market or use a market subcommand.
+    usage: /market [buy|sell|orders|cancel|mailbox|claim|lang|help]
+    aliases: [pazar, em]
+    permission: eldrosmarket.use
+  marketadmin:
+    description: Market administration.
+    usage: /marketadmin <reload|verify|safemode|recovery>
+    aliases: [pazaradmin]
+    permission: eldrosmarket.admin
+permissions:
+  eldrosmarket.use:
+    description: Open the market and browse it.
+    default: true
+  eldrosmarket.buy:
+    description: Create buy orders.
+    default: true
+  eldrosmarket.sell:
+    description: Create sell orders.
+    default: true
+  eldrosmarket.admin:
+    description: All admin commands.
+    default: op
