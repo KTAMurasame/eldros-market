@@ -3,6 +3,9 @@
 
 # Build output
 target/
+
+# jqwik local run state (failure seeds), machine-specific
+.jqwik-database
 spike/**/target/
 
 # IDE
