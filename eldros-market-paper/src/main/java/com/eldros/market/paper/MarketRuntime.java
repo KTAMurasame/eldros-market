@@ -184,9 +184,26 @@ public final class MarketRuntime {
         engine = new MatchingEngine();
         settlement = new SettlementService(engine, ledger, clock);
         MarketContext context = new MarketContext(engine, settlement, ledger, journal, tx, effects,
-                economy, inventory, markers, FaultInjector.NONE, clock, engineExecutor, mainExecutor, effectExecutor);
+                economy, inventory, markers, faults(), clock, engineExecutor, mainExecutor, effectExecutor);
         ops = new MarketOperations(context, safeMode, MarketRuntime::sleep);
         recovery = new RecoveryService(context);
+    }
+
+    /**
+     * Crash points exist only in test builds (-Pcrashtest). A release jar has no debug package, so the property is
+     * reported and ignored instead of silently doing nothing.
+     */
+    private FaultInjector faults() {
+        if (System.getProperty("eldros.debug.crashpoint") == null) {
+            return FaultInjector.NONE;
+        }
+        try {
+            return (FaultInjector) Class.forName("com.eldros.market.paper.debug.CrashpointInjector")
+                    .getConstructor(java.util.logging.Logger.class).newInstance(log);
+        } catch (ReflectiveOperationException e) {
+            log.severe("eldros.debug.crashpoint is set, but this is a release build without crash-test tooling; ignored.");
+            return FaultInjector.NONE;
+        }
     }
 
     void stop() {

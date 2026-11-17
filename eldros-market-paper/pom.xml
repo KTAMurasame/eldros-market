@@ -18,6 +18,8 @@
     <paper.version>1.21.4-R0.1-SNAPSHOT</paper.version>
     <!-- plugin.yml libraries: fallback only; the server's own driver is used when present (D10). -->
     <sqlite.fallback.version>3.47.0.0</sqlite.fallback.version>
+    <!-- Release jars drop the crash-test tooling; the crashtest profile overrides this. -->
+    <debug.exclude>com/eldros/market/paper/debug/**</debug.exclude>
   </properties>
 
   <repositories>
@@ -93,6 +95,15 @@
                 </includes>
               </artifactSet>
               <createDependencyReducedPom>false</createDependencyReducedPom>
+              <!-- Crash-test tooling (docs/04 §3.8) never ships: only the crashtest profile keeps it. -->
+              <filters>
+                <filter>
+                  <artifact>com.eldros:eldros-market-paper</artifact>
+                  <excludes>
+                    <exclude>${debug.exclude}</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
@@ -101,6 +112,13 @@
   </build>
 
   <profiles>
+    <!-- Test build with the crash-point tooling: mvn -Pcrashtest package (never publish this jar). -->
+    <profile>
+      <id>crashtest</id>
+      <properties>
+        <debug.exclude>nothing-excluded/**</debug.exclude>
+      </properties>
+    </profile>
     <!-- Compile-only check against the newest API (docs/03 §10.2). Run with JDK 25: mvn -Pcompat-26 compile -->
     <profile>
       <id>compat-26</id>

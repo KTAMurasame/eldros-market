@@ -56,6 +56,21 @@ public final class EldrosMarketPlugin extends JavaPlugin {
         register("marketadmin", new AdminCommand(runtime));
         getServer().getPluginManager().registerEvents(new PlayerListener(runtime), this);
         getServer().getPluginManager().registerEvents(new MenuListener(prompt, icons, getLogger()), this);
+        registerDebugCommand();
+    }
+
+    /** Test builds only: the class is absent from release jars, so this does nothing there. */
+    private void registerDebugCommand() {
+        try {
+            org.bukkit.command.Command debug = (org.bukkit.command.Command) Class.forName("com.eldros.market.paper.debug.DebugCommand")
+                    .getConstructor(MarketRuntime.class).newInstance(runtime);
+            getServer().getCommandMap().register("eldrosmarket", debug);
+            getLogger().warning("TEST BUILD: /eldrosdebug is available. Do not run this jar on a live server.");
+        } catch (ClassNotFoundException e) {
+            // release build
+        } catch (ReflectiveOperationException e) {
+            getLogger().warning("Could not register the debug command: " + e);
+        }
     }
 
     private MenuConfigs menuConfigs;

@@ -87,6 +87,13 @@ final class Rig implements AutoCloseable {
         return next;
     }
 
+    /** A normal start on existing files: open and run startup recovery (which also rebuilds the books). */
+    static Rig reopen(Path dir, FakeWorld world) {
+        Rig next = new Rig(dir, world, null);
+        next.recovery.recoverAtStartup(EffectLog.read(dir.resolve("effects.log")));
+        return next;
+    }
+
     /** Player join: reconcile markers and remove the ones recovery says are finished. */
     RecoveryService.ReconcileReport join(PlayerId player) {
         RecoveryService.ReconcileReport report = recovery.reconcilePlayer(player, world.all(player));
