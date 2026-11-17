@@ -12,11 +12,16 @@ import com.eldros.market.core.journal.JournalEntry.State;
 import com.eldros.market.core.journal.JournalEntry.Type;
 import com.eldros.market.core.port.EconomyGateway.EconomyResult;
 import com.eldros.market.core.port.FaultInjector.CrashPoint;
+import com.eldros.market.core.safety.SafeMode;
+import com.eldros.market.core.storage.StaleStateException;
+import com.eldros.market.core.storage.StorageException;
 import com.eldros.market.core.storage.jdbc.JdbcJournal.MailboxRow;
+import com.eldros.market.core.storage.jdbc.TransactionRunner.SqlWork;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 
 /**
@@ -24,21 +29,52 @@ import java.util.function.Supplier;
  * SELL_CREATE and CLAIM_ITEM change the inventory. Every one writes its journal intent first; economy outcomes go
  * to the effect log; inventory changes carry a player marker made durable by save (Player#saveData). Steps hop
  * between threads with CompletableFuture; the main thread never waits.
+ *
+ * <p>Writes after an external effect are retried (200/500/1000 ms); if they still fail the market enters safe mode
+ * and the operation is left for recovery, which refunds from the effect log or the markers (docs/03 §7.8).
  */
 public final class MarketOperations {
 
+    @FunctionalInterface
+    public interface Sleeper {
+        void sleep(long millis);
+    }
+
+    private static final long[] RETRY_DELAYS = {200, 500, 1_000};
+
+    private static final class SafeModeTripped extends RuntimeException {
+        SafeModeTripped(Throwable cause) {
+            super(cause);
+        }
+    }
+
     private final MarketContext x;
+    private final SafeMode safeMode;
+    private final Sleeper sleeper;
 
     public MarketOperations(MarketContext context) {
+        this(context, new SafeMode(), MarketOperations::sleepQuietly);
+    }
+
+    public MarketOperations(MarketContext context, SafeMode safeMode, Sleeper sleeper) {
         this.x = context;
+        this.safeMode = safeMode;
+        this.sleeper = sleeper;
+    }
+
+    public SafeMode safeMode() {
+        return safeMode;
     }
 
     // --- BUY_CREATE ----------------------------------------------------------------------------------
 
     public CompletableFuture<OpResult> buy(NewOrder spec) {
         String op = UUID.randomUUID().toString();
+        if (safeMode.isActive()) {
+            return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.SAFE_MODE));
+        }
         Money amount = spec.unitPrice().times(spec.quantity());
-        return CompletableFuture.supplyAsync(() -> {
+        return guard(op, CompletableFuture.supplyAsync(() -> {
                     x.tx().inTransaction(c -> {
                         x.journal().insertPending(c, JournalEntry.pending(op, Type.BUY_CREATE, spec.owner(), spec.template(),
                                 spec.quantity(), spec.unitPrice(), amount, null, now()));
@@ -52,7 +88,7 @@ public final class MarketOperations {
                 .thenApplyAsync(outcome -> logEffect(op, outcome, CrashPoint.BUY_EFFECT_LOGGED), x.effectThread())
                 .thenApplyAsync(outcome -> switch (outcome) {
                     case CONFIRMED -> {
-                        MatchPlan plan = x.tx().inTransaction(c -> {
+                        MatchPlan plan = durably(c -> {
                             MatchPlan p = x.settlement().placeInTransaction(c, spec, op);
                             x.journal().transition(c, op, State.PENDING, State.APPLIED, p.incomingOrder().id(), null, null, null, now());
                             x.faults().at(CrashPoint.BUY_IN_TRANSACTION);
@@ -70,15 +106,18 @@ public final class MarketOperations {
                         transition(op, State.QUARANTINED, "VAULT_EXCEPTION");
                         yield OpResult.quarantined(op);
                     }
-                }, x.engineThread());
+                }, x.engineThread()));
     }
 
     // --- SELL_CREATE ---------------------------------------------------------------------------------
 
     public CompletableFuture<OpResult> sell(NewOrder spec) {
         String op = UUID.randomUUID().toString();
+        if (safeMode.isActive()) {
+            return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.SAFE_MODE));
+        }
         PlayerId owner = spec.owner();
-        return CompletableFuture.supplyAsync(() -> {
+        return guard(op, CompletableFuture.supplyAsync(() -> {
                     x.tx().inTransaction(c -> {
                         x.journal().insertPending(c, JournalEntry.pending(op, Type.SELL_CREATE, owner, spec.template(),
                                 spec.quantity(), spec.unitPrice(), null, null, now()));
@@ -103,7 +142,7 @@ public final class MarketOperations {
                         transition(op, State.ABORTED, null);
                         return OpResult.rejected(op, OpResult.Reason.NOT_ENOUGH_ITEMS);
                     }
-                    MatchPlan plan = x.tx().inTransaction(c -> {
+                    MatchPlan plan = durably(c -> {
                         MatchPlan p = x.settlement().placeInTransaction(c, spec, op);
                         x.journal().transition(c, op, State.PENDING, State.APPLIED, p.incomingOrder().id(), null, null, null, now());
                         x.faults().at(CrashPoint.SELL_IN_TRANSACTION);
@@ -118,14 +157,17 @@ public final class MarketOperations {
                         x.markers().remove(owner, op); // durability of the removal is not needed (terminal + marker → cleanup)
                     }
                     return result;
-                }, x.mainThread());
+                }, x.mainThread()));
     }
 
     // --- CLAIM_MONEY / CLAIM_ITEM ----------------------------------------------------------------------
 
     public CompletableFuture<OpResult> claim(PlayerId player, long mailboxId) {
         String op = UUID.randomUUID().toString();
-        return CompletableFuture.supplyAsync(() -> x.tx().inTransaction(c -> {
+        if (safeMode.isActive()) {
+            return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.SAFE_MODE));
+        }
+        return guard(op, CompletableFuture.supplyAsync(() -> x.tx().inTransaction(c -> {
                     Optional<MailboxRow> found = x.journal().mailbox(c, mailboxId);
                     if (found.isEmpty() || !found.get().owner().equals(player) || !"AVAILABLE".equals(found.get().status())) {
                         return Optional.<MailboxRow>empty();
@@ -142,7 +184,7 @@ public final class MarketOperations {
                         return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.NOT_AVAILABLE));
                     }
                     return "MONEY".equals(row.get().kind()) ? claimMoney(op, player, row.get()) : claimItems(op, player, row.get());
-                });
+                }));
     }
 
     private CompletableFuture<OpResult> claimMoney(String op, PlayerId player, MailboxRow row) {
@@ -153,7 +195,7 @@ public final class MarketOperations {
                 .thenApplyAsync(outcome -> logEffect(op, outcome, CrashPoint.MONEY_EFFECT_LOGGED), x.effectThread())
                 .thenApplyAsync(outcome -> switch (outcome) {
                     case CONFIRMED -> {
-                        x.tx().inTransaction(c -> {
+                        durably(c -> {
                             x.journal().transition(c, op, State.PENDING, State.APPLIED, null, null, null, null, now());
                             x.journal().finishClaim(c, row.id(), op, 0, now());
                             x.faults().at(CrashPoint.MONEY_IN_TRANSACTION);
@@ -163,7 +205,7 @@ public final class MarketOperations {
                         yield OpResult.done(op, null, 0);
                     }
                     case FAILED -> {
-                        x.tx().inTransaction(c -> {
+                        durably(c -> {
                             x.journal().transition(c, op, State.PENDING, State.ABORTED, null, null, null, null, now());
                             x.journal().moveClaim(c, row.id(), op, "CLAIMING", "AVAILABLE", now());
                             return null;
@@ -171,7 +213,7 @@ public final class MarketOperations {
                         yield OpResult.rejected(op, OpResult.Reason.NOT_AVAILABLE);
                     }
                     case UNKNOWN -> {
-                        x.tx().inTransaction(c -> {
+                        durably(c -> {
                             x.journal().transition(c, op, State.PENDING, State.QUARANTINED, null, null, "VAULT_EXCEPTION", null, now());
                             x.journal().moveClaim(c, row.id(), op, "CLAIMING", "QUARANTINED", now());
                             return null;
@@ -197,14 +239,14 @@ public final class MarketOperations {
                 }, x.mainThread())
                 .thenApplyAsync(n -> {
                     if (n == 0) {
-                        x.tx().inTransaction(c -> {
+                        durably(c -> {
                             x.journal().transition(c, op, State.PENDING, State.ABORTED, null, null, null, null, now());
                             x.journal().moveClaim(c, row.id(), op, "CLAIMING", "AVAILABLE", now());
                             return null;
                         });
                         return OpResult.rejected(op, OpResult.Reason.INVENTORY_FULL);
                     }
-                    x.tx().inTransaction(c -> {
+                    durably(c -> {
                         x.journal().transition(c, op, State.PENDING, State.APPLIED, null, n, null, null, now());
                         x.journal().finishClaim(c, row.id(), op, n, now());
                         x.faults().at(CrashPoint.ITEM_IN_TRANSACTION);
@@ -225,6 +267,9 @@ public final class MarketOperations {
 
     /** Player cancel. Pure database + engine; no external effect, so no journal entry is needed. */
     public CompletableFuture<OpResult> cancel(PlayerId player, long orderId) {
+        if (safeMode.isActive()) {
+            return CompletableFuture.completedFuture(OpResult.rejected(null, OpResult.Reason.SAFE_MODE));
+        }
         return CompletableFuture.supplyAsync(() -> {
             CancelPlan probe;
             try {
@@ -241,6 +286,43 @@ public final class MarketOperations {
     }
 
     // --- helpers -----------------------------------------------------------------------------------
+
+    /**
+     * Runs a write that follows an external effect. Retries storage failures; a stale state on a retry means an
+     * earlier attempt committed although the driver reported an error ("ghost commit", V-S-2). Either way, when the
+     * retries are spent the market enters safe mode and recovery will close the operation from durable evidence.
+     */
+    private <T> T durably(SqlWork<T> work) {
+        StorageException last = null;
+        for (int attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+            try {
+                return x.tx().inTransaction(work);
+            } catch (StaleStateException e) {
+                if (attempt == 0) {
+                    throw e; // a genuine logic conflict, not a storage fault
+                }
+                last = e;
+                break;
+            } catch (StorageException e) {
+                last = e;
+                if (attempt < RETRY_DELAYS.length) {
+                    sleeper.sleep(RETRY_DELAYS[attempt]);
+                }
+            }
+        }
+        safeMode.enter("write failed after retries: " + last.getMessage());
+        throw new SafeModeTripped(last);
+    }
+
+    private CompletableFuture<OpResult> guard(String op, CompletableFuture<OpResult> chain) {
+        return chain.exceptionally(t -> {
+            Throwable cause = t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
+            if (cause instanceof SafeModeTripped) {
+                return OpResult.rejected(op, OpResult.Reason.SAFE_MODE);
+            }
+            throw t instanceof CompletionException ce ? ce : new CompletionException(t);
+        });
+    }
 
     private Outcome callProvider(Supplier<EconomyResult> call, CrashPoint after) {
         Outcome outcome;
@@ -260,7 +342,7 @@ public final class MarketOperations {
     }
 
     private void transition(String op, State to, String reason) {
-        x.tx().inTransaction(c -> {
+        durably(c -> {
             x.journal().transition(c, op, State.PENDING, to, null, null, reason, null, now());
             return null;
         });
@@ -268,5 +350,13 @@ public final class MarketOperations {
 
     private long now() {
         return x.clock().millis();
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

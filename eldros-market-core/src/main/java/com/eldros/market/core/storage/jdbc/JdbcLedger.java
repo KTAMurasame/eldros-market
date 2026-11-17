@@ -213,6 +213,42 @@ public final class JdbcLedger {
         }
     }
 
+    public record Notification(long id, String messageKey, List<Long> args) {
+    }
+
+    /** Undelivered outbox rows of a player, oldest first. */
+    public List<Notification> pendingNotifications(Connection c, PlayerId player) throws SQLException {
+        List<Notification> out = new ArrayList<>();
+        try (PreparedStatement p = c.prepareStatement(
+                "SELECT id, message_key, args FROM notifications WHERE player_uuid = ? AND delivered_at IS NULL ORDER BY id")) {
+            p.setString(1, player.value().toString());
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) {
+                    List<Long> args = new ArrayList<>();
+                    for (String part : rs.getString(3).split("\\|")) {
+                        if (!part.isEmpty()) {
+                            args.add(Long.parseLong(part));
+                        }
+                    }
+                    out.add(new Notification(rs.getLong(1), rs.getString(2), List.copyOf(args)));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** At-least-once delivery: marked after sending; a crash in between sends again once (scenario 5). */
+    public void markDelivered(Connection c, List<Long> ids, long now) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("UPDATE notifications SET delivered_at = ? WHERE id = ? AND delivered_at IS NULL")) {
+            for (long id : ids) {
+                p.setLong(1, now);
+                p.setLong(2, id);
+                p.addBatch();
+            }
+            p.executeBatch();
+        }
+    }
+
     public List<Order> loadActiveOrders(Connection c) throws SQLException {
         List<Order> out = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(
