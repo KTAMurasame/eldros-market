@@ -12,12 +12,25 @@
 
   <artifactId>eldros-market-core</artifactId>
   <name>Eldros Market Core</name>
+
+  <properties>
+    <sqlite.test.version>3.47.0.0</sqlite.test.version>
+  </properties>
   <description>Market logic (money, order book, matching). Must stay free of Bukkit/Paper. See docs/03 §2.</description>
 
   <dependencies>
     <dependency>
       <groupId>com.eldros</groupId>
       <artifactId>eldros-market-api</artifactId>
+    </dependency>
+
+    <!-- At runtime the server's own sqlite-jdbc is used (D10). Tests run against the oldest one seen on a
+         supported server by default; F2 also runs with -Dsqlite.test.version=3.49.1.0 (docs/F2 plan §4). -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>${sqlite.test.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
