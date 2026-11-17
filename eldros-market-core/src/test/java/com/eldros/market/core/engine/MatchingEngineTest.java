@@ -249,6 +249,18 @@ class MatchingEngineTest {
         assertThat(cancel.refundMoney()).isEqualTo(Money.ZERO);
     }
 
+    // Break: a cancel planned before a fill refunds the pre-fill escrow (money created out of thin air).
+    @Test
+    void applyingACancelPlanThatNoLongerMatchesTheOrderIsRefused() {
+        Order buy = engine.place(order(A, BUY, 12, 10)).incomingOrder();
+        CancelPlan cancel = engine.planCancel(buy.id(), OrderStatus.CANCELLED); // refund would be 120
+        engine.place(order(B, SELL, 12, 4));                                    // escrow is now 72
+
+        assertThatThrownBy(() -> engine.applyCancel(cancel)).isInstanceOf(IllegalStateException.class);
+        assertThat(buy.status()).isEqualTo(OrderStatus.ACTIVE);
+        assertThat(buy.escrow()).isEqualTo(Money.ofMinor(72));
+    }
+
     @Test
     void cancellingAnOrderThatIsNotActiveIsRefused() {
         Order sell = engine.place(order(A, SELL, 10, 1)).incomingOrder();
