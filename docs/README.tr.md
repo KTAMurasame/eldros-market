@@ -12,7 +12,7 @@ eşleşme, emanet (escrow), posta kutusu, geçmiş ve hiçbir şeyi iki kez öde
   tam iadeli iptal var.
 - **Hiçbir şey iki kez verilmez.** Her para ve eşya hareketi gerçekleşmeden önce günlüğe yazılır. Çökme veya
   `kill -9` sonrası sonucu kesin olan işlemleri kendisi tamamlar ya da geri alır; kesin olmayanları tahmin etmek
-  yerine yönetici kararına (karantina) bırakır. Gerçek sunucuda 18 çökme noktasında denendi:
+  yerine yönetici kararına (karantina) bırakır. Gerçek sunucularda 22 çökme senaryosunda denendi:
   [06-qa-report.md](06-qa-report.md).
 - **Kendi emirleriniz birbiriyle eşleşmez**; sıradaki yerleri de korunur.
 - **Birebir eşya.** Büyülü, isim verilmiş veya özel veri taşıyan eşyalar kendi pazarında işlem görür.
@@ -32,10 +32,10 @@ Yalnızca gerçekten çalıştırılanlar "test edildi" olarak yazılır:
 
 | Paper | Java | Köprü + ekonomi | Durum |
 |---|---|---|---|
-| 1.21.4 (build 232) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek oyuncu, menüler, iki oyunculu alım satım, 18 çökme senaryosu |
-| 1.21.11 (build 132) | 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Açılıyor, komutlar yanıt veriyor; oyunda denenmedi |
-| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | Açılıyor, komutlar yanıt veriyor; oyunda denenmedi |
-| Diğerleri, Java 21 ile herhangi bir sunucu | | | Henüz test edilmedi |
+| 1.21.4 (build 232) | 21 ve 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek oyuncu, menüler, iki oyunculu alım satım, 18 çökme senaryosu (çökme testleri Java 25'te) |
+| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek oyuncu, menüler, 4 eşya çökme senaryosu |
+| 1.21.11 (build 132) | 21 ve 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Açılıyor, komutlar yanıt veriyor; oyunda denenmedi |
+| Diğerleri | | | Henüz test edilmedi |
 
 ## Kurulum
 
@@ -82,7 +82,8 @@ ondalık için nokta kullanılır (`12.50`).
 
 ## Ayarlar
 
-Tüm anahtarlar `config.yml` içinde açıklamalı. Dil dosyaları `lang/` (MiniMessage), menü düzenleri `menus/` içinde;
+Vanilla eşya adları her oyuncunun kendi Minecraft dilinde görünür (adları istemci çevirir); menü araması İngilizce eşya
+adıyla yapılır, örn. `diamond` veya `oak log`. Tüm anahtarlar `config.yml` içinde açıklamalı. Dil dosyaları `lang/` (MiniMessage), menü düzenleri `menus/` içinde;
 ayrıntılar İngilizce README'de. Hatalı bir menü değeri konsola dosya ve anahtar adıyla yazılır, yalnızca o anahtar için
 varsayılan kullanılır.
 

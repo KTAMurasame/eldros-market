@@ -130,7 +130,7 @@ admin:
 # --- menus (layouts are in menus/*.yml) ----------------------------------------------------------------
 menu:
   prompt:
-    search: "<yellow>Type a search word in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
+    search: "<yellow>Type the item's English id in chat, e.g. <white>diamond</white> or <white>oak log</white></yellow> <gray>(or <white>cancel</white>).</gray>"
     quantity: "<yellow>Type the quantity in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
     price: "<yellow>Type the unit price in chat, e.g. 12.50</yellow> <gray>(or <white>cancel</white>).</gray>"
   common:
@@ -142,7 +142,7 @@ menu:
     next: {name: "<yellow>Next page</yellow>", lore: ["<gray>Page <page>/<pages></gray>"]}
     loading: {name: "<gray>Loading…</gray>"}
     empty: {name: "<gray>Nothing here yet.</gray>"}
-    search: {name: "<yellow>Search</yellow>", lore: ["<gray>Current: <white><search></white></gray>", "<gray>Click and type in chat.</gray>"]}
+    search: {name: "<yellow>Search</yellow>", lore: ["<gray>Current: <white><search></white></gray>", "<gray>Click and type an English item id in chat.</gray>"]}
     clear-search: {name: "<yellow>Clear search</yellow>"}
   main:
     title: "<dark_gray>Eldros Market</dark_gray>"

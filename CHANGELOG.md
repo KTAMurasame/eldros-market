@@ -22,5 +22,5 @@ First public build (Free edition).
   version, backup before each schema migration.
 
 ### Tested
-See [docs/06-qa-report.md](docs/06-qa-report.md). Fully tested on Paper 1.21.4 with VaultUnlocked and EssentialsX
-(Java 25); startup checked on 1.21.11 and 26.3.
+See [docs/06-qa-report.md](docs/06-qa-report.md). Tested with real players on Paper 1.21.4 (Java 21 and 25) and
+26.3 (Java 25) with VaultUnlocked and EssentialsX; startup checked on 1.21.11.

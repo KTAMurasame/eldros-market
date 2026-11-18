@@ -111,23 +111,36 @@ Karantinadaki 4 işlem (2 BUY_CREATE, 2 CLAIM_MONEY) `recovery resolve … not-a
 - **Sonuç:** Eldros'un karantina kararı doğru (para yaratılmadı, kaybolmadı). Ama admin, karantinadaki bir para işlemini çözerken **oyuncunun gerçek bakiyesine bakmalı**; bu testte doğru karar `not-applied` idi.
 - **Kalan risk (garanti dışı, 04 §3.7):** Effect log CONFIRMED yazıldıktan sonra sağlayıcı kaydı hâlâ kaybolursa, kurtarma CONFIRMED'e güvenir: BUY'da iade fazladan para, CLAIM_MONEY'de kayıp olur. Bu testte gözlenmedi; penceresi sağlayıcının yazma gecikmesine bağlı ve ölçülmedi. Dokümanda "ekonomi eklentisinin kalıcılığı Eldros'un garantisi dışında" olarak yazılacak.
 
-### 4.5 Çalıştırılmayan çökme vakaları
-V-W-0/2/4/8/9, D-W-0/2/4/8/9, I-W-4/6/7/8, S-W-4/6/7/8, P-8, P-13, P-15 gerçek sunucuda çalıştırılmadı. Çekirdek testleri (sahte dünya) bu pencerelerin çoğunu kapsıyor. 26.3'te çökme testi **yapılmadı** (plan 1.21.4 ve 26.3 istiyordu).
+### 4.5 Paper 26.3 (build 253), gerçek istemci — 4/4 beklenen
+Ek tur (2026-11-18), VaultUnlocked 2.20.3 + EssentialsX 2.22.0, Java 25.
+
+| Vaka | Nokta | Sonuç | Elmas (envanter + posta) |
+|---|---|---|---|
+| S-W-2 | SELL_REMOVED_UNSAVED | ABORTED | 77 + 1 |
+| S-W-3 | SELL_SAVED | RECOVERED, 2 adet `RECOVERY_REFUND` | 75 + 3 |
+| I-W-2 | ITEM_ADDED_UNSAVED | ABORTED, kayıt AVAILABLE | 75 + 3 |
+| I-W-3 | ITEM_SAVED | RECOVERED, CLAIMED, `qty_effective=1` | 76 + 2 |
+
+Toplam her adımda 78; `verify` temiz; karantina yok.
+
+### 4.6 Çalıştırılmayan çökme vakaları
+V-W-0/2/4/8/9, D-W-0/2/4/8/9, I-W-4/6/7/8, S-W-4/6/7/8, P-8, P-13, P-15 gerçek sunucuda çalıştırılmadı. Çekirdek testleri (sahte dünya) bu pencerelerin çoğunu kapsıyor. 26.3'te para vakaları ve I-W-1/I-W-5 çalıştırılmadı.
 
 ## 5. Uyumluluk matrisi (04 §6.2)
 
 | # | Paper | Java | Köprü + sağlayıcı | Statik | IT | İstemci duman | Çökme | Durum |
 |---|---|---|---|---|---|---|---|---|
-| C-1 | 1.21.4 | 25* | Vault + EssentialsX | ☑ | — | ☐ | ☐ | Test edilmedi |
-| C-2 | 1.21.4 | 25* | VaultUnlocked + EssentialsX | ☑ | — | ☑ | ☑ | **Test edildi** (Java 25 ile) |
-| C-5 | 1.21.11 | 25* | Vault + EssentialsX | ☑ | — | ☐ (açılış ☑) | ☐ | Açılış + komut dumanı |
+| C-1 | 1.21.4 | 21 | Vault + EssentialsX | ☑ | — | ☐ | ☐ | Test edilmedi |
+| C-2 | 1.21.4 | 21 | VaultUnlocked + EssentialsX | ☑ | — | ☑ | ☐ (Java 25'te ☑) | **Test edildi**: Java 21'de açılış, menüler, "hepsini topla"; tam akış ve 18 çökme vakası Java 25'te |
+| C-2' | 1.21.4 | 25 | VaultUnlocked + EssentialsX | ☑ | — | ☑ | ☑ | **Test edildi** |
+| C-5 | 1.21.11 | 21 | Vault + EssentialsX | ☑ | — | ☐ (açılış ☑) | ☐ | Açılış + komut dumanı (Java 21 ve 25) |
 | C-13 | 26.3 | 25 | Vault + EssentialsX | ☑ | — | ☐ | ☐ | Test edilmedi |
-| C-14 | 26.3 | 25 | VaultUnlocked + EssentialsX | ☑ | — | ☐ (açılış ☑) | ☐ | Açılış + komut dumanı |
+| C-14 | 26.3 | 25 | VaultUnlocked + EssentialsX | ☑ | — | ☑ | ☑ (4 eşya vakası) | **Test edildi** |
 | Diğerleri | 1.21.8, 26.1.2, 26.2 | — | — | — | — | — | — | Test edilmedi |
 
-\* Tüm sunucular JDK 25 ile çalıştı; **Java 21 ile hiçbir sunucu çalıştırılmadı.** Planın C-1…C-6 satırları Java 21 istiyor.
+Java 21: Eclipse Temurin 21.0.13+9 (SHA-256 Adoptium API ile doğrulandı).
 "IT" (`eldros-market-it` sunucu içi eklentisi) yazılmadı; yerine gerçek sunucu duman testi + `eldrosdebug` kullanıldı.
-Kural (04 §8.6): Listing yalnızca "Test edildi" satırlarını gösterir. Şu an yalnızca **Paper 1.21.4 + VaultUnlocked + EssentialsX (Java 25)** bu düzeyde.
+Kural (04 §8.6): Listing yalnızca "Test edildi" satırlarını gösterir: **Paper 1.21.4 (Java 21 ve 25) ve Paper 26.3 (Java 25), VaultUnlocked + EssentialsX ile.**
 
 ## 6. Performans (04 §7)
 
@@ -152,17 +165,17 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 | Madde | Neden | Durum |
 |---|---|---|
 | Tab önerileri `/pazar` ile hep Türkçe | Alias dili zorluyordu | **Düzeltildi** (2bb3f7b), oyunda doğrulandı |
-| "Hepsini topla" envanter doluyken para kayıtlarını atlıyordu | İlk reddedilen eşyada duruyordu | **Düzeltildi**, oyunda **yeniden doğrulanmadı** |
+| "Hepsini topla" envanter doluyken para kayıtlarını atlıyordu | İlk reddedilen eşyada duruyordu | **Düzeltildi**, oyunda doğrulandı (1.21.4, Java 21: eşya kaydı AVAILABLE kaldı, para CLAIMED) |
+| Arama yalnızca İngilizce eşya kimliğiyle çalışıyor (`elmas` bulmuyor) | Sunucuda Türkçe eşya adları yok; eşya isimleri istemci tarafında çevriliyor | **Kabul edilen sınırlama**; arama mesajı "İngilizce adıyla arayın, örn. diamond" olarak değiştirildi |
 
 ## 8. Test edilmeyen maddeler
 
-- Java 21 ile herhangi bir sunucu; 1.21.8, 26.1.2, 26.2; orijinal Vault ile 1.21.4 ve 26.3.
-- 26.3 ve 1.21.11'de gerçek istemci testi ve çökme testi.
+- 1.21.8, 26.1.2, 26.2; orijinal Vault ile 1.21.4 ve 26.3; Java 21 ile çökme testi.
+- 1.21.11'de gerçek istemci testi ve çökme testi.
 - `eldros-market-it` sunucu içi test eklentisi (yazılmadı).
 - §3.3'te "Test edilmedi" ve "Kısmen" olarak işaretlenen dupe maddeleri.
 - §4.5'teki çökme vakaları; hız sınırı kuyruğu (P-14/P-15); "hepsini al" ortasında çökme (P-8/P-13).
 - Sürüm geçişleri M-1/M-2 (1.21.x → 26.3 aynı DB); düşürme reddi yalnızca 26.3 → 1.21.4 için denendi (F3).
-- "Hepsini topla" düzeltmesinin oyunda doğrulanması.
 - §6'daki ölçülmeyen performans satırları.
 
 ## 9. Bilinen sınırlamalar
@@ -170,4 +183,5 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 - **Ekonomi sağlayıcısının kalıcılığı garanti dışı** (04 §3.7). EssentialsX 2.22.0'ın çökmeden hemen önceki değişikliği kaybettiği gözlendi (§4.4). Karantinadaki para işlemlerinde admin oyuncu bakiyesini kontrol etmeli.
 - **Oyuncu verisinin yedekten geri yüklenmesi veya envanter senkron eklentileri** (U-5) desteklenmez; tespit edilemez.
 - Çöken süreç son konsol satırlarını yazamayabilir (Paper'ın asenkron logu); kurtarma kararları konsola değil veritabanına ve effect log'a dayanır.
+- Vanilla eşya adları oyuncunun istemci dilinde görünür (eklenti dili yalnızca menü metinlerini değiştirir); arama İngilizce eşya kimliğiyle yapılır.
 - Katalog, veri gerektiren eşyaları (iksir, büyülü kitap, kafa vb.) listelemez; bunlar "elindeki eşya" ile işlem görür.

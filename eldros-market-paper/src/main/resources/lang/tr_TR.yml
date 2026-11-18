@@ -130,7 +130,7 @@ admin:
 # --- menüler (düzenler menus/*.yml dosyalarında) --------------------------------------------------------
 menu:
   prompt:
-    search: "<yellow>Aranacak kelimeyi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    search: "<yellow>Eşyanın İngilizce adını sohbete yazın, örn. <white>diamond</white> veya <white>oak log</white></yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
     quantity: "<yellow>Adedi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
     price: "<yellow>Birim fiyatı sohbete yazın, örn. 12.50</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
   common:
@@ -142,7 +142,7 @@ menu:
     next: {name: "<yellow>Sonraki sayfa</yellow>", lore: ["<gray>Sayfa <page>/<pages></gray>"]}
     loading: {name: "<gray>Yükleniyor…</gray>"}
     empty: {name: "<gray>Burada henüz bir şey yok.</gray>"}
-    search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp sohbete yazın.</gray>"]}
+    search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp eşyanın İngilizce adını yazın.</gray>"]}
     clear-search: {name: "<yellow>Aramayı temizle</yellow>"}
   main:
     title: "<dark_gray>Eldros Pazar</dark_gray>"

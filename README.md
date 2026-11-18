@@ -12,7 +12,7 @@ with escrow, a mailbox, full history and crash recovery that never pays anything
   cancellation with full refund are built in.
 - **Nothing is ever given twice.** Every money or item movement is written to a journal *before* it happens. After a
   crash or `kill -9` the plugin recovers on its own where the outcome is certain, and puts the operation in
-  quarantine for an admin where it is not (it never guesses with money). Tested on a real server at 18 crash points,
+  quarantine for an admin where it is not (it never guesses with money). Tested on real servers in 22 crash scenarios,
   see [docs/06-qa-report.md](docs/06-qa-report.md).
 - **Your own orders never match each other** (self-trade prevention), without losing their place in the queue.
 - **Exact items.** Enchanted, renamed or otherwise special items are their own market; only identical items match.
@@ -32,10 +32,10 @@ Only what was actually run is listed as tested:
 
 | Paper | Java | Bridge + economy | Status |
 |---|---|---|---|
-| 1.21.4 (build 232) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Tested**: real players, menus, two-player trading, 18 crash scenarios |
-| 1.21.11 (build 132) | 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Starts, commands answer; not played on |
-| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | Starts, commands answer; not played on |
-| Anything else, any server on Java 21 | | | Not tested yet |
+| 1.21.4 (build 232) | 21 and 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Tested**: real players, menus, two-player trading, 18 crash scenarios (crash tests on Java 25) |
+| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Tested**: real player, menus, 4 item crash scenarios |
+| 1.21.11 (build 132) | 21 and 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Starts, commands answer; not played on |
+| Anything else | | | Not tested yet |
 
 The API calls in the jar were checked against 1.21.4, 1.21.11 and 26.3: none missing.
 
@@ -103,7 +103,8 @@ Aliases: `/pazar`, `/em`. Prices are per item; `12.50` uses a dot as decimal sep
 
 **Languages:** `lang/en_US.yml` and `lang/tr_TR.yml` (MiniMessage). Copy one to add a language; missing keys fall back
 to English, and new keys are added to your files automatically on update. Item names from players are never parsed
-as formatting.
+as formatting. Vanilla item names are shown in each player's own Minecraft language (the client translates them);
+menu search uses the English item id, e.g. `diamond` or `oak log`.
 
 **Menus:** `menus/<screen>.yml` sets rows, filler, slots and icon materials for the ten screens (main, browse,
 catalog, book, create, confirm, orders, history, mailbox, language). Texts are in the language files under `menu.`.
