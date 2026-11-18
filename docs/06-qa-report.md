@@ -1,6 +1,6 @@
 # QA Raporu — Eldros Market 0.1.0-SNAPSHOT (F5)
 
-> Tarih: 2026-11-18 · Dal: `f4-gui` · Yapı: [04-test-plan.md](04-test-plan.md) §9.
+> Tarih: 2026-11-18. "04 §…" ve "03 §…" atıfları yayımlanmamış iç test planı ve mimari belgesine aittir.
 > Etiketler: **[Doğrulandı]** bu raporda çalıştırıldı ve sonucu görüldü · **[Gözlem]** gerçek sağlayıcı/sunucu davranışı, garanti değil · **[Ölçülmedi]** / **[Test edilmedi]** yapılmadı, nedeni yazılı.
 
 ## 1. Ortam
@@ -31,7 +31,7 @@
 
 ## 3. Gerçek istemci testleri
 
-1.21.4, gerçek istemci (test oyuncusu; eşleşme için ikinci hesap). Sonuçlar oyuncunun gözlemi + sunucu kaydı + veritabanı ile doğrulandı.
+1.21.4, gerçek istemci (test oyuncusu; eşleşme için ikinci bir test hesabı). Sonuçlar oyuncunun gözlemi + sunucu kaydı + veritabanı ile doğrulandı.
 
 ### 3.1 Komutlar ve eşleşme [Doğrulandı]
 | Madde | Sonuç |
