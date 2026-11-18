@@ -3,6 +3,7 @@ package com.eldros.market.paper.gui.screen;
 import com.eldros.market.core.domain.Money;
 import com.eldros.market.core.engine.BookView.MarketSummary;
 import com.eldros.market.paper.gui.Menus;
+import com.eldros.market.paper.gui.ItemSearch;
 import com.eldros.market.paper.gui.PagedMenu;
 import com.eldros.market.paper.i18n.Messages;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -31,20 +32,17 @@ public final class BrowseMenu extends PagedMenu<MarketSummary> {
 
     @Override
     protected void onOpen() {
+        ItemSearch finder = search == null ? null : ItemSearch.of(search, msg.searchAliases());
         load(actions.markets(), list -> show(list.stream()
                 .filter(s -> rt.templates().has(s.template()))
-                .filter(s -> matches(rt.templates().stack(s.template(), 1), search))
+                .filter(s -> finder == null || matches(rt.templates().stack(s.template(), 1), finder))
                 .toList()));
     }
 
-    /** Item id or visible name contains the search text. */
-    static boolean matches(ItemStack item, String search) {
-        if (search == null) {
-            return true;
-        }
-        String id = item.getType().getKey().getKey().replace('_', ' ');
-        String name = PlainTextComponentSerializer.plainText().serialize(item.displayName()).toLowerCase(Locale.ROOT);
-        return id.contains(search.replace('_', ' ')) || name.contains(search);
+    /** Every search word matches the item id (directly or via the language's search words) or its custom name. */
+    static boolean matches(ItemStack item, ItemSearch finder) {
+        String name = PlainTextComponentSerializer.plainText().serialize(item.displayName());
+        return finder.matches(item.getType().getKey().getKey(), name);
     }
 
     @Override

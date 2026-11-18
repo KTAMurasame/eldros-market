@@ -73,6 +73,35 @@ public final class Messages {
             defaultLanguage = "en_US";
         }
         this.defaultLanguage = canonical(defaultLanguage);
+        this.searchAliases = loadSearchAliases();
+    }
+
+    private volatile Map<String, List<String>> searchAliases = Map.of();
+
+    /**
+     * Search words of every language file ({@code search-aliases:} word → id fragment, or a list of them), merged:
+     * a player may type in any language whatever menu language they picked. Keys are normalized for search.
+     */
+    public Map<String, List<String>> searchAliases() {
+        return searchAliases;
+    }
+
+    private Map<String, List<String>> loadSearchAliases() {
+        Map<String, List<String>> out = new java.util.HashMap<>();
+        for (YamlConfiguration y : languages.values()) {
+            org.bukkit.configuration.ConfigurationSection s = y.getConfigurationSection("search-aliases");
+            if (s == null) {
+                continue;
+            }
+            for (String word : s.getKeys(false)) {
+                List<String> targets = s.isList(word) ? s.getStringList(word)
+                        : java.util.Arrays.asList(String.valueOf(s.get(word)).split(","));
+                List<String> clean = targets.stream().map(t -> t.trim().toLowerCase(java.util.Locale.ROOT).replace(' ', '_'))
+                        .filter(t -> !t.isEmpty()).toList();
+                out.computeIfAbsent(com.eldros.market.paper.gui.ItemSearch.normalize(word), k -> new java.util.ArrayList<>()).addAll(clean);
+            }
+        }
+        return Map.copyOf(out);
     }
 
     private void mergeMissingKeys(File file, String bundled) {

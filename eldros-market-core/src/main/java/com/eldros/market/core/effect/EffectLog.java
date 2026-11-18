@@ -122,6 +122,6 @@ public final class EffectLog implements AutoCloseable {
     private static String crc(String body) {
         CRC32 c = new CRC32();
         c.update(body.getBytes(StandardCharsets.UTF_8));
-        return String.format("%08x", c.getValue());
+        return String.format(java.util.Locale.ROOT, "%08x", c.getValue());
     }
 }

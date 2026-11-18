@@ -166,7 +166,7 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 |---|---|---|
 | Tab önerileri `/pazar` ile hep Türkçe | Alias dili zorluyordu | **Düzeltildi** (2bb3f7b), oyunda doğrulandı |
 | "Hepsini topla" envanter doluyken para kayıtlarını atlıyordu | İlk reddedilen eşyada duruyordu | **Düzeltildi**, oyunda doğrulandı (1.21.4, Java 21: eşya kaydı AVAILABLE kaldı, para CLAIMED) |
-| Arama yalnızca İngilizce eşya kimliğiyle çalışıyor (`elmas` bulmuyor) | Sunucuda Türkçe eşya adları yok; eşya isimleri istemci tarafında çevriliyor | **Kabul edilen sınırlama**; arama mesajı "İngilizce adıyla arayın, örn. diamond" olarak değiştirildi |
+| Arama yalnızca İngilizce eşya kimliğiyle çalışıyordu (`elmas` bulmuyordu) | Sunucuda Türkçe eşya adları yok; eşya isimleri istemci tarafında çevriliyor | **Düzeltildi**: dil dosyasında `search-aliases` sözlüğü (TR: 213 kelime, hepsi 1.21.4 eşya listesine karşı denetlendi, 0 eşleşmeyen), kelime bazlı arama, Türkçe harf katlama; `ItemSearchTest` (5 test). Oyunda **denenmedi** |
 
 ## 8. Test edilmeyen maddeler
 
@@ -183,5 +183,5 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 - **Ekonomi sağlayıcısının kalıcılığı garanti dışı** (04 §3.7). EssentialsX 2.22.0'ın çökmeden hemen önceki değişikliği kaybettiği gözlendi (§4.4). Karantinadaki para işlemlerinde admin oyuncu bakiyesini kontrol etmeli.
 - **Oyuncu verisinin yedekten geri yüklenmesi veya envanter senkron eklentileri** (U-5) desteklenmez; tespit edilemez.
 - Çöken süreç son konsol satırlarını yazamayabilir (Paper'ın asenkron logu); kurtarma kararları konsola değil veritabanına ve effect log'a dayanır.
-- Vanilla eşya adları oyuncunun istemci dilinde görünür (eklenti dili yalnızca menü metinlerini değiştirir); arama İngilizce eşya kimliğiyle yapılır.
+- Vanilla eşya adları oyuncunun istemci dilinde görünür (eklenti dili yalnızca menü metinlerini değiştirir). Arama İngilizce kimlik + dil dosyasındaki sözlükle çalışır; sözlükte olmayan Türkçe kelimeler bulunmaz.
 - Katalog, veri gerektiren eşyaları (iksir, büyülü kitap, kafa vb.) listelemez; bunlar "elindeki eşya" ile işlem görür.

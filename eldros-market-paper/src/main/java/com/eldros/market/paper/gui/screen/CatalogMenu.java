@@ -56,9 +56,11 @@ public final class CatalogMenu extends PagedMenu<Material> {
 
     @Override
     protected void onOpen() {
+        com.eldros.market.paper.gui.ItemSearch finder = search == null ? null
+                : com.eldros.market.paper.gui.ItemSearch.of(search, msg.searchAliases());
         show(catalog().stream()
                 .filter(m -> rt.filter().refusal(new ItemStack(m)).isEmpty())
-                .filter(m -> search == null || m.getKey().getKey().replace('_', ' ').contains(search.replace('_', ' ')))
+                .filter(m -> finder == null || finder.matches(m.getKey().getKey(), null))
                 .toList());
     }
 

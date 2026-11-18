@@ -82,8 +82,9 @@ ondalık için nokta kullanılır (`12.50`).
 
 ## Ayarlar
 
-Vanilla eşya adları her oyuncunun kendi Minecraft dilinde görünür (adları istemci çevirir); menü araması İngilizce eşya
-adıyla yapılır, örn. `diamond` veya `oak log`. Tüm anahtarlar `config.yml` içinde açıklamalı. Dil dosyaları `lang/` (MiniMessage), menü düzenleri `menus/` içinde;
+Vanilla eşya adları her oyuncunun kendi Minecraft dilinde görünür (adları istemci çevirir). Menü araması hem İngilizce
+eşya adıyla hem Türkçe kelimelerle çalışır: `elmas kılıç`, `açık mavi yün`, Türkçe harfsiz `kilic`. Türkçe kelimeler
+`lang/tr_TR.yml` içindeki `search-aliases` sözlüğünden gelir (yaklaşık 200 kelime); sunucu sahibi ekleyebilir. Tüm anahtarlar `config.yml` içinde açıklamalı. Dil dosyaları `lang/` (MiniMessage), menü düzenleri `menus/` içinde;
 ayrıntılar İngilizce README'de. Hatalı bir menü değeri konsola dosya ve anahtar adıyla yazılır, yalnızca o anahtar için
 varsayılan kullanılır.
 

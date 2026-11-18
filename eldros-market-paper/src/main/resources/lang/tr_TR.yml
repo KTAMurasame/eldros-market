@@ -130,7 +130,7 @@ admin:
 # --- menüler (düzenler menus/*.yml dosyalarında) --------------------------------------------------------
 menu:
   prompt:
-    search: "<yellow>Eşyanın İngilizce adını sohbete yazın, örn. <white>diamond</white> veya <white>oak log</white></yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    search: "<yellow>Aradığınız eşyayı sohbete yazın, örn. <white>elmas kılıç</white> veya <white>diamond sword</white></yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
     quantity: "<yellow>Adedi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
     price: "<yellow>Birim fiyatı sohbete yazın, örn. 12.50</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
   common:
@@ -142,7 +142,7 @@ menu:
     next: {name: "<yellow>Sonraki sayfa</yellow>", lore: ["<gray>Sayfa <page>/<pages></gray>"]}
     loading: {name: "<gray>Yükleniyor…</gray>"}
     empty: {name: "<gray>Burada henüz bir şey yok.</gray>"}
-    search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp eşyanın İngilizce adını yazın.</gray>"]}
+    search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp sohbete yazın (Türkçe veya İngilizce).</gray>"]}
     clear-search: {name: "<yellow>Aramayı temizle</yellow>"}
   main:
     title: "<dark_gray>Eldros Pazar</dark_gray>"
@@ -270,3 +270,232 @@ menu:
       lore: ["<green>Seçili</green>"]
     other:
       lore: ["<yellow>Seçmek için tıklayın.</yellow>"]
+
+# --- menü araması ---------------------------------------------------------------------------------------
+# Eşya adlarını oyuncunun istemcisi çevirir; sunucu yalnızca İngilizce kimlikleri bilir (diamond_sword gibi).
+# Burada Türkçe kelime → İngilizce kimlik parçası eşlenir. Aramadaki her kelime eşleşmeli: "elmas kılıç" → diamond + sword.
+# Birden fazla karşılık için liste kullanın. Türkçe harfsiz yazım da çalışır (kilic = kılıç).
+search-aliases:
+  # malzemeler
+  elmas: diamond
+  demir: iron
+  altın: gold
+  zümrüt: emerald
+  kömür: coal
+  odun kömürü: charcoal
+  bakır: copper
+  netherit: netherite
+  lapis: lapis
+  kızıltaş: redstone
+  kuvars: quartz
+  ametist: amethyst
+  külçe: ingot
+  ham: raw
+  parça: [nugget, scrap, shard]
+  cevher: ore
+  blok: block
+  # taşlar ve bloklar
+  taş: stone
+  kırıktaş: cobblestone
+  parke taşı: cobblestone
+  yosunlu: mossy
+  toprak: dirt
+  çimen: grass
+  kum: sand
+  kumtaşı: sandstone
+  çakıl: gravel
+  cam: glass
+  tuğla: brick
+  kil: clay
+  pişmiş toprak: terracotta
+  sırlı: glazed
+  beton: concrete
+  granit: granite
+  diyorit: diorite
+  andezit: andesite
+  derin arduvaz: deepslate
+  arduvaz: deepslate
+  tüf: tuff
+  kalsit: calcite
+  bazalt: basalt
+  karataş: blackstone
+  obsidyen: obsidian
+  buz: ice
+  kar: snow
+  çamur: mud
+  netherrak: netherrack
+  ruh: soul
+  ışıktaşı: glowstone
+  deniz feneri: sea_lantern
+  prizmarin: prismarine
+  mercan: coral
+  sünger: sponge
+  # ağaç
+  kütük: [log, stem]
+  tahta: planks
+  odun: [wood, hyphae]
+  yaprak: leaves
+  fidan: sapling
+  meşe: oak
+  koyu meşe: dark_oak
+  solgun meşe: pale_oak
+  ladin: spruce
+  huş: birch
+  orman: jungle
+  akasya: acacia
+  mangrov: mangrove
+  kiraz: cherry
+  bambu: bamboo
+  kızıl: crimson
+  çarpık: warped
+  soyulmuş: stripped
+  # renkler
+  beyaz: white
+  turuncu: orange
+  eflatun: magenta
+  açık mavi: light_blue
+  sarı: yellow
+  açık yeşil: lime
+  pembe: pink
+  gri: gray
+  açık gri: light_gray
+  camgöbeği: cyan
+  mor: purple
+  mavi: blue
+  kahverengi: brown
+  yeşil: green
+  kırmızı: red
+  siyah: black
+  boya: dye
+  yün: wool
+  halı: carpet
+  # yapı parçaları
+  basamak: stairs
+  merdiven: [ladder, stairs]
+  levha: slab
+  duvar: wall
+  çit: fence
+  çit kapısı: fence_gate
+  kapı: door
+  tuzak kapısı: trapdoor
+  tabela: sign
+  sancak: banner
+  yatak: bed
+  # eşyalar ve aletler
+  kılıç: sword
+  kazma: pickaxe
+  balta: axe
+  kürek: shovel
+  çapa: hoe
+  miğfer: helmet
+  göğüslük: chestplate
+  tozluk: leggings
+  çizme: boots
+  zırh: [helmet, chestplate, leggings, boots]
+  kalkan: shield
+  yay: bow
+  arbalet: crossbow
+  ok: arrow
+  yaba: trident
+  olta: fishing_rod
+  makas: shears
+  çakmak taşı: flint
+  kova: bucket
+  pusula: compass
+  saat: clock
+  harita: map
+  kitap: book
+  kitaplık: bookshelf
+  kağıt: paper
+  isim etiketi: name_tag
+  eyer: saddle
+  elitra: elytra
+  totem: totem
+  meşale: torch
+  fener: lantern
+  # mobilya ve çalışma blokları
+  sandık: chest
+  ender sandığı: ender_chest
+  varil: barrel
+  shulker kutusu: shulker_box
+  fırın: [furnace, smoker]
+  çalışma masası: crafting_table
+  büyü masası: enchanting_table
+  örs: anvil
+  demirci masası: smithing_table
+  taş kesici: stonecutter
+  bileği taşı: grindstone
+  dokuma tezgâhı: loom
+  dokuma tezgahı: loom
+  huni: hopper
+  kazan: cauldron
+  kompost: composter
+  işaret feneri: beacon
+  # kızıltaş devreleri
+  piston: piston
+  gözlemci: observer
+  dağıtıcı: dispenser
+  bırakıcı: dropper
+  yineleyici: repeater
+  karşılaştırıcı: comparator
+  kol: lever
+  düğme: button
+  basınç plakası: pressure_plate
+  ray: rail
+  maden arabası: minecart
+  sal: [boat, raft]
+  kayık: boat
+  # yiyecek ve tarım
+  elma: apple
+  altın elma: golden_apple
+  ekmek: bread
+  buğday: wheat
+  tohum: seeds
+  havuç: carrot
+  patates: potato
+  pancar: beetroot
+  karpuz: melon
+  balkabağı: pumpkin
+  şeker kamışı: sugar_cane
+  şeker: sugar
+  kakao: cocoa
+  biftek: beef
+  domuz: porkchop
+  tavuk: chicken
+  koyun eti: mutton
+  tavşan: rabbit
+  morina: cod
+  somon: salmon
+  balık: [cod, salmon, fish]
+  yumurta: egg
+  süt: milk
+  kurabiye: cookie
+  pasta: cake
+  çorba: stew
+  mantar: mushroom
+  kaktüs: cactus
+  sarmaşık: vine
+  çiçek: [dandelion, poppy, orchid, allium, tulip, daisy, cornflower, lily]
+  # yaratık ganimetleri
+  kemik: bone
+  kemik tozu: bone_meal
+  ip: string
+  deri: leather
+  tüy: feather
+  barut: gunpowder
+  balçık: slime
+  çürük et: rotten_flesh
+  örümcek gözü: spider_eye
+  ender incisi: ender_pearl
+  ender gözü: ender_eye
+  alaz çubuğu: blaze_rod
+  alaz tozu: blaze_powder
+  magma kremi: magma_cream
+  hayalet gözyaşı: ghast_tear
+  fantom zarı: phantom_membrane
+  nautilus kabuğu: nautilus_shell
+  denizin kalbi: heart_of_the_sea
+  nether yıldızı: nether_star
+  nether siğili: nether_wart
+  şişe: bottle
+  tnt: tnt

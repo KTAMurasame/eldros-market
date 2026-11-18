@@ -104,7 +104,7 @@ Aliases: `/pazar`, `/em`. Prices are per item; `12.50` uses a dot as decimal sep
 **Languages:** `lang/en_US.yml` and `lang/tr_TR.yml` (MiniMessage). Copy one to add a language; missing keys fall back
 to English, and new keys are added to your files automatically on update. Item names from players are never parsed
 as formatting. Vanilla item names are shown in each player's own Minecraft language (the client translates them);
-menu search uses the English item id, e.g. `diamond` or `oak log`.
+menu search takes English item ids (`diamond sword`) and, through `search-aliases` in the language files, local words: the Turkish file maps about 200 words (`elmas kılıç`, `açık mavi yün`, also without Turkish letters: `kilic`).
 
 **Menus:** `menus/<screen>.yml` sets rows, filler, slots and icon materials for the ten screens (main, browse,
 catalog, book, create, confirm, orders, history, mailbox, language). Texts are in the language files under `menu.`.

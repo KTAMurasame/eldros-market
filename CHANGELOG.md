@@ -16,6 +16,8 @@ First public build (Free edition).
   my orders, history (with filter), mailbox, language. Layouts in `menus/*.yml`, texts in the language files.
 - Commands `/market` (`/pazar`, `/em`) and `/marketadmin` (`/pazaradmin`) with English and Turkish subcommands.
 - English and Turkish, per-player language, client-locale detection, new keys merged into existing files.
+- Menu search by words; language files can map local words to item ids (`search-aliases`, about 200 Turkish words).
+  Turkish letters are optional when searching.
 - Item filter: blacklist, filled shulker boxes/bundles, blocked PDC namespaces. Per-player order limit permission.
 - Optional order expiry (off by default).
 - Startup guards: minimum SQLite 3.47, refuses a changed money scale, refuses a database from a newer Minecraft
