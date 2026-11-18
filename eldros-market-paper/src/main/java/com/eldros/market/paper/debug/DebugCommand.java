@@ -51,7 +51,7 @@ public final class DebugCommand extends Command {
         PlayerId id = new PlayerId(target.getUniqueId());
         switch (args[0]) {
             case "buy", "sell" -> order(sender, args, id, args[0].equals("buy") ? OrderSide.BUY : OrderSide.SELL);
-            case "claim" -> claim(sender, id);
+            case "claim" -> claim(sender, id, args.length >= 3 ? args[2].toUpperCase(java.util.Locale.ROOT) : null);
             case "cancelall" -> rt.onEngine(() -> rt.tx().inTransaction(c -> rt.ledger().activeOrdersOf(c, id)))
                     .thenAccept(list -> list.forEach(o -> rt.ops().cancel(id, o.id())
                             .whenComplete((r, e) -> report(sender, "CANCEL #" + o.id() + " ", r, e))));
@@ -71,8 +71,10 @@ public final class DebugCommand extends Command {
         }).whenComplete((r, e) -> report(out, side + " ", r, e));
     }
 
-    private void claim(CommandSender out, PlayerId id) {
-        rt.onEngine(() -> rt.tx().inTransaction(c -> rt.journal().availableFor(c, id))).thenCompose(rows -> {
+    /** Claims the first available entry, or the first of {@code kind} (ITEM / MONEY) when given. */
+    private void claim(CommandSender out, PlayerId id, String kind) {
+        rt.onEngine(() -> rt.tx().inTransaction(c -> rt.journal().availableFor(c, id))).thenCompose(all -> {
+            List<MailboxRow> rows = kind == null ? all : all.stream().filter(r -> r.kind().equals(kind)).toList();
             if (rows.isEmpty()) {
                 return CompletableFuture.completedFuture((OpResult) null);
             }

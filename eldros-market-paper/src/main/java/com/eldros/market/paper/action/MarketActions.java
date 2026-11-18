@@ -237,18 +237,25 @@ public final class MarketActions {
             msg.send(p, "claim.nothing");
             return no();
         }
-        return locked(p, () -> claimNext(p, rows, 0));
+        return locked(p, () -> claimNext(p, rows, 0, false));
     }
 
-    private CompletableFuture<Boolean> claimNext(Player p, List<MailboxRow> rows, int index) {
+    /**
+     * Claims in order. Once the inventory is full, the remaining item entries are skipped (they cannot fit) but money
+     * entries are still collected; any other refusal stops the run. True only if every entry was claimed in full.
+     */
+    private CompletableFuture<Boolean> claimNext(Player p, List<MailboxRow> rows, int index, boolean full) {
         if (index >= rows.size()) {
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(!full);
         }
         if (!p.isOnline()) {
             return no();
         }
         MailboxRow row = rows.get(index);
         boolean item = "ITEM".equals(row.kind());
+        if (item && full) {
+            return claimNext(p, rows, index + 1, true);
+        }
         if (item && !rt.tryItemOperation()) {
             msg.send(p, "general.busy");
             return no();
@@ -256,19 +263,19 @@ public final class MarketActions {
         return rt.ops().claim(new PlayerId(p.getUniqueId()), row.id()).thenComposeAsync(r -> {
             if (r.status() != OpResult.Status.DONE) {
                 reason(p, r);
-                return no();
+                return r.reason() == OpResult.Reason.INVENTORY_FULL ? claimNext(p, rows, index + 1, true) : no();
             }
             String lang = msg.languageOf(p);
             if (!item) {
                 msg.send(p, "claim.money", msg.money(lang, "amount", row.amount(), rt.settings().scale()));
-                return claimNext(p, rows, index + 1);
+                return claimNext(p, rows, index + 1, full);
             }
             msg.send(p, "claim.items", Messages.text("qty", r.quantity()), Messages.component("item", rt.templates().name(row.template())));
             if (r.quantity() < row.qty()) {
                 msg.send(p, "claim.partial", Messages.text("qty", r.quantity()));
-                return no(); // inventory is full; the rest stays
+                return claimNext(p, rows, index + 1, true); // inventory is full now; the rest of this entry stays
             }
-            return claimNext(p, rows, index + 1);
+            return claimNext(p, rows, index + 1, full);
         }, rt.main());
     }
 
