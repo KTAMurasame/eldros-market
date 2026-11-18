@@ -116,6 +116,12 @@ Eldros bu işlemleri karantinaya aldı ve doğru karar `not-applied` idi. 2. ad�
 - Oyuncu verisinin yedekten geri yüklenmesi veya envanter senkron eklentileri.
 - MySQL / sunucu ağı (ayrı Pro sürümü için planlanıyor).
 
+## Destek
+
+Hata ve sorular: [GitHub Issues](https://github.com/KTAMurasame/eldros-market/issues). Paper sürümünü, eklenti sürümünü,
+ekonomi eklentini ve konsol kaydını (`logs/latest.log`) ekle. Çökme olduysa `/pazaradmin verify` ve
+`/pazaradmin recovery list` çıktısını da ekle.
+
 ## Lisans
 
 Telif © 2026 Eldros. [GNU Genel Kamu Lisansı v3.0](../LICENSE) (GPL-3.0-only). Şimdilik dış katkı kabul edilmiyor.

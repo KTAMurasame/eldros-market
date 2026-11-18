@@ -139,6 +139,12 @@ Eldros put those operations in quarantine, and the correct decision was `not-app
 - Restoring player data from a backup, or inventory sync plugins: the plugin cannot see such changes.
 - MySQL / networks (planned for a separate Pro edition).
 
+## Support
+
+Bugs and questions: [GitHub Issues](https://github.com/KTAMurasame/eldros-market/issues). Please include your Paper
+version, the plugin version, your economy plugin and the console log (`logs/latest.log`). If a crash was involved,
+also add the output of `/marketadmin verify` and `/marketadmin recovery list`.
+
 ## Building
 
 ```
