@@ -1,5 +1,5 @@
 # Eldros Market configuration.
-# Changes to limits, language and menus apply after /marketadmin reload. Storage settings need a restart.
+# Everything here applies after /marketadmin reload, except economy.decimal-places (fixed once the database exists).
 config-version: 1
 
 language:

@@ -12,3 +12,6 @@ spike/**/target/
 .idea/
 *.iml
 .vscode/
+
+# Release packages (built locally, published by hand)
+release/
