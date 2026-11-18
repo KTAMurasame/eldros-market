@@ -166,7 +166,7 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 |---|---|---|
 | Tab önerileri `/pazar` ile hep Türkçe | Alias dili zorluyordu | **Düzeltildi** (2bb3f7b), oyunda doğrulandı |
 | "Hepsini topla" envanter doluyken para kayıtlarını atlıyordu | İlk reddedilen eşyada duruyordu | **Düzeltildi**, oyunda doğrulandı (1.21.4, Java 21: eşya kaydı AVAILABLE kaldı, para CLAIMED) |
-| Arama yalnızca İngilizce eşya kimliğiyle çalışıyordu (`elmas` bulmuyordu) | Sunucuda Türkçe eşya adları yok; eşya isimleri istemci tarafında çevriliyor | **Düzeltildi**: dil dosyasında `search-aliases` sözlüğü (TR: 213 kelime, hepsi 1.21.4 eşya listesine karşı denetlendi, 0 eşleşmeyen), kelime bazlı arama, Türkçe harf katlama; `ItemSearchTest` (5 test). Oyunda **denenmedi** |
+| Arama yalnızca İngilizce eşya kimliğiyle çalışıyordu (`elmas` bulmuyordu) | Sunucuda Türkçe eşya adları yok; eşya isimleri istemci tarafında çevriliyor | **Düzeltildi**: dil dosyasında `search-aliases` sözlüğü (TR: 213 kelime, hepsi 1.21.4 eşya listesine karşı denetlendi, 0 eşleşmeyen), kelime bazlı arama, Türkçe harf katlama; `ItemSearchTest` (5 test). Oyunda doğrulandı (1.21.4, Java 21: `elmas kılıç`, `kilic`, `açık mavi yün`) |
 
 ## 8. Test edilmeyen maddeler
 
