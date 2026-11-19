@@ -97,6 +97,11 @@ public final class MatchingEngine {
         return active.isEmpty();
     }
 
+    /** The active order with this id, if any. Engine thread only; the order must not be changed by the caller. */
+    public java.util.Optional<Order> activeOrder(long id) {
+        return java.util.Optional.ofNullable(active.get(id));
+    }
+
     public OrderBook book(TemplateId template) {
         OrderBook book = books.get(template);
         return book != null ? book : new OrderBook();
@@ -191,6 +196,7 @@ public final class MatchingEngine {
         OrderBook book = books.get(template);
         long left = quantity;
         Money cost = Money.ZERO;
+        Money worst = null;
         boolean crossesOwn = false;
         if (book != null) {
             for (Map.Entry<Money, NavigableMap<Long, Order>> level : book.levels(side.opposite()).entrySet()) {
@@ -207,11 +213,12 @@ public final class MatchingEngine {
                     }
                     long q = Math.min(left, resting.remaining());
                     cost = cost.plus(level.getKey().times(q));
+                    worst = level.getKey(); // levels are walked best first, so the last traded one is the worst
                     left -= q;
                 }
             }
         }
-        return new BookView.Preview(quantity - left, cost, crossesOwn);
+        return new BookView.Preview(quantity - left, cost, crossesOwn, java.util.Optional.ofNullable(worst));
     }
 
     private static boolean crosses(Order incoming, Money restingPrice) {

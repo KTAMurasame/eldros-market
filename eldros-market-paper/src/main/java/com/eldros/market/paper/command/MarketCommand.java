@@ -31,7 +31,7 @@ import java.util.function.Function;
  */
 public final class MarketCommand implements TabExecutor {
 
-    private enum Sub { HELP, SELL, BUY, ORDERS, CANCEL, MAILBOX, CLAIM, LANG }
+    private enum Sub { HELP, SELL, BUY, ORDERS, CANCEL, MAILBOX, CLAIM, LANG, ALERTS }
 
     private static final Map<String, Sub> SUBS = Map.ofEntries(
             Map.entry("help", Sub.HELP), Map.entry("yardım", Sub.HELP), Map.entry("yardim", Sub.HELP),
@@ -41,10 +41,11 @@ public final class MarketCommand implements TabExecutor {
             Map.entry("cancel", Sub.CANCEL), Map.entry("iptal", Sub.CANCEL),
             Map.entry("mailbox", Sub.MAILBOX), Map.entry("posta", Sub.MAILBOX),
             Map.entry("claim", Sub.CLAIM), Map.entry("topla", Sub.CLAIM),
-            Map.entry("lang", Sub.LANG), Map.entry("dil", Sub.LANG));
+            Map.entry("lang", Sub.LANG), Map.entry("dil", Sub.LANG),
+            Map.entry("alerts", Sub.ALERTS), Map.entry("bildirim", Sub.ALERTS));
 
-    private static final List<String> EN = List.of("help", "sell", "buy", "orders", "cancel", "mailbox", "claim", "lang");
-    private static final List<String> TR = List.of("yardım", "sat", "al", "emirler", "iptal", "posta", "topla", "dil");
+    private static final List<String> EN = List.of("help", "sell", "buy", "orders", "cancel", "mailbox", "claim", "lang", "alerts");
+    private static final List<String> TR = List.of("yardım", "sat", "al", "emirler", "iptal", "posta", "topla", "dil", "bildirim");
 
     private final MarketRuntime rt;
     private final Messages msg;
@@ -89,6 +90,7 @@ public final class MarketCommand implements TabExecutor {
             case CANCEL -> cancel(player, args);
             case MAILBOX -> mailbox(player);
             case CLAIM -> claim(player, args);
+            case ALERTS -> msg.send(player, rt.toggleAlerts(player) ? "alerts.muted" : "alerts.unmuted");
             default -> msg.send(player, "general.unknown-subcommand");
         }
         return true;
@@ -117,8 +119,39 @@ public final class MarketCommand implements TabExecutor {
         return Optional.of(new Amounts(q.value(), m.value()));
     }
 
+    /**
+     * {@code sell <qty> <price>} places a sell order; {@code sell} alone sells the stack in hand right now to the best
+     * buy orders; {@code sell all} does that for everything in the inventory. The instant forms confirm in a menu first.
+     */
     private void sell(Player p, String[] args) {
+        if (args.length == 1) {
+            sellHandNow(p);
+            return;
+        }
+        if (args.length == 2 && (args[1].equalsIgnoreCase("all") || args[1].equalsIgnoreCase("hepsi"))) {
+            if (actions.trading(p) && actions.permitted(p, "eldrosmarket.sell")) {
+                menus.openSellAll(p);
+            }
+            return;
+        }
         amounts(p, args).ifPresent(a -> actions.place(p, OrderSide.SELL, p.getInventory().getItemInMainHand(), a.qty(), a.price()));
+    }
+
+    private void sellHandNow(Player p) {
+        if (!actions.trading(p) || !actions.permitted(p, "eldrosmarket.sell")) {
+            return;
+        }
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (hand.getType().isAir()) {
+            msg.send(p, "instant.empty-hand");
+            return;
+        }
+        Optional<com.eldros.market.api.model.TemplateId> template = rt.templates().find(hand);
+        if (template.isEmpty()) {
+            msg.send(p, "instant.no-buyers", Messages.component("item", hand.displayName()));
+            return;
+        }
+        menus.openInstant(p, hand, template.get(), OrderSide.SELL, hand.getAmount());
     }
 
     private void buy(Player p, String[] args) {
@@ -273,7 +306,7 @@ public final class MarketCommand implements TabExecutor {
         }
         return switch (sub) {
             case LANG -> args.length == 2 ? prefixed(new ArrayList<>(msg.available()), args[1]) : List.of();
-            case CLAIM -> args.length == 2 ? prefixed(List.of(turkish ? "hepsi" : "all"), args[1]) : List.of();
+            case CLAIM, SELL -> args.length == 2 ? prefixed(List.of(turkish ? "hepsi" : "all"), args[1]) : List.of();
             case BUY -> args.length == 4 ? materials(args[3]) : List.of();
             default -> List.of();
         };

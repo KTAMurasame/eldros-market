@@ -15,6 +15,9 @@ buttons:
   back: {slot: 45, material: ARROW}
   buy: {slot: 48, material: EMERALD}
   sell: {slot: 50, material: GOLD_INGOT}
+  # Trade right now against the best orders; nothing is left in the book.
+  buy-now: {slot: 47, material: EMERALD_BLOCK}
+  sell-now: {slot: 51, material: GOLD_BLOCK}
   refresh: {slot: 53, material: CLOCK}
   loading: {slot: 22, material: CLOCK}
   empty: {slot: 22, material: PAPER}

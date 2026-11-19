@@ -36,10 +36,32 @@ class MigratorTest {
         try (SqliteDatabase db = TestDatabases.open(dir.resolve("m.db"))) {
             Migrator.Result result = new Migrator(db.writer(), backups::add).migrate();
 
-            assertThat(result.applied()).containsExactly(1);
+            assertThat(result.applied()).containsExactly(1, 2);
             assertThat(count(db.writer(), "SELECT COUNT(*) FROM orders")).isZero();
-            assertThat(count(db.writer(), "SELECT COUNT(*) FROM schema_version")).isEqualTo(1);
+            assertThat(count(db.writer(), "SELECT COUNT(*) FROM schema_version")).isEqualTo(2);
             assertThat(backups).isEmpty();
+        }
+    }
+
+    // Break: upgrading a 0.1.0 database (schema v1) loses orders or gives old orders a tax they never agreed to.
+    @Test
+    void aVersionOneDatabaseIsBackedUpAndUpgradedWithoutTaxOnOldOrders() throws SQLException {
+        List<Integer> backups = new ArrayList<>();
+        try (SqliteDatabase db = TestDatabases.open(dir.resolve("m.db"))) {
+            new Migrator(db.writer(), v -> { }, List.of("V1__init.sql")).migrate();
+            try (var s = db.writer().createStatement()) {
+                s.executeUpdate("INSERT INTO item_templates (material, item_bytes, data_version, created_at) "
+                        + "VALUES ('minecraft:diamond', x'01', 4189, 0)");
+                s.executeUpdate("INSERT INTO orders (owner_uuid, side, template_id, unit_price, qty_total, qty_filled, "
+                        + "escrow_money, status, seq, created_at, updated_at) "
+                        + "VALUES ('00000000-0000-0000-0000-000000000001', 'BUY', 1, 5, 10, 0, 50, 'ACTIVE', 1, 0, 0)");
+            }
+
+            Migrator.Result result = new Migrator(db.writer(), backups::add).migrate();
+
+            assertThat(backups).containsExactly(1);
+            assertThat(result.applied()).containsExactly(2);
+            assertThat(count(db.writer(), "SELECT COUNT(*) FROM orders WHERE seller_tax_bps = 0 AND creation_fee = 0")).isEqualTo(1);
         }
     }
 
@@ -51,7 +73,7 @@ class MigratorTest {
             Migrator.Result second = new Migrator(db.writer(), v -> { }).migrate();
 
             assertThat(second.applied()).isEmpty();
-            assertThat(count(db.writer(), "SELECT COUNT(*) FROM schema_version")).isEqualTo(1);
+            assertThat(count(db.writer(), "SELECT COUNT(*) FROM schema_version")).isEqualTo(2);
         }
     }
 

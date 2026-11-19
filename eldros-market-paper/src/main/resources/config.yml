@@ -12,6 +12,21 @@ economy:
   # Decimal places of your currency. The economy plugin's own value is only compared for a warning,
   # because some providers report it wrongly (e.g. -1). 0 = whole coins, 2 = cents.
   decimal-places: 2
+  # Sales tax: kept from the seller's proceeds of every trade, e.g. "2.5" = 2.5%. It leaves the economy (a money
+  # sink). The rate is fixed when a sell order is placed, so changing it never affects orders already in the book.
+  sales-tax:
+    percent: "0"
+    # Lower rates by permission: a player with eldrosmarket.tax.<name> pays that rate (the lowest one they have).
+    tiers: {}
+    #  vip: "1"
+    #  staff: "0"
+  # Fee for placing a buy order: flat + percent of the order value (quantity x price), at most "max" ("0" = no cap).
+  # Taken together with the reserved money, never refunded; not charged for instant buys or edits.
+  # Players with eldrosmarket.fee.exempt pay no fee. All "0" = off.
+  buy-order-fee:
+    flat: "0"
+    percent: "0"
+    max: "0"
 
 limits:
   # Price per single item.
@@ -21,6 +36,14 @@ limits:
   max-quantity-per-order: 2304
   # Active orders per player. Grant eldrosmarket.limit.orders.<n> to raise it for a group.
   default-max-active-orders: 10
+  # Price range per item, replacing min/max-unit-price for that item only (set one or both). Instant trades never go
+  # outside it either. Orders already in the book are not changed when you edit this.
+  per-item: {}
+  #  minecraft:diamond:
+  #    min: "50"
+  #    max: "5000"
+  #  minecraft:dirt:
+  #    max: "1"
 
 orders:
   expiry:
@@ -51,3 +74,39 @@ items:
 performance:
   # Item operations (sell order, item claim) per second across the server. Each saves player data once.
   item-ops-per-second: 10
+
+input:
+  # How menus ask for a price, a quantity or a search: "anvil" opens an anvil window with the current value in its
+  # text field (edit it, click the result paper; Esc cancels); "chat" asks for the next chat line. If the server
+  # cannot open anvil windows, chat is used automatically.
+  method: anvil
+
+mailbox:
+  # Money a player receives while online (sales, refunds) goes straight to their balance instead of waiting in the
+  # mailbox. Uses the same crash-safe claim as /market claim; items always stay in the mailbox (the inventory may be
+  # full). Players in a disabled world or game mode collect it later.
+  auto-collect-money: false
+
+restrictions:
+  # The market (menus, commands, trading) is closed in these worlds (world folder names) and game modes.
+  # Creative players can create items from nothing, so creative is closed by default.
+  # Players with eldrosmarket.bypass.restrictions (not given to ops) are not limited.
+  disabled-worlds: []
+  disabled-gamemodes:
+    - creative
+    - spectator
+
+placeholders:
+  # Used only when PlaceholderAPI is installed. Values (best prices, mailbox and order counts) are refreshed this often
+  # in the background, so placeholders never slow the server down. Full list: README, "Placeholders".
+  refresh-seconds: 5
+  # Shown when there is no value, e.g. no buy order for the item.
+  none: "-"
+
+notifications:
+  # Sound played once when market messages arrive (sales, purchases, returns). Leave empty ("") for silence.
+  # Any sound key works, e.g. minecraft:entity.experience_orb.pickup or minecraft:block.note_block.bell.
+  sound: "minecraft:entity.experience_orb.pickup"
+  # On join, everything that happened while the player was away is summarised. Longer summaries are cut here
+  # with an "and N more" line; the mailbox still holds everything.
+  join-summary-max-lines: 8

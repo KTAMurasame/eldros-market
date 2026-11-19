@@ -5,17 +5,18 @@ api-version: '1.21.4'
 description: Player buy and sell orders with an order book, escrow, mailbox and crash recovery.
 authors: [Eldros]
 depend: [Vault]
+softdepend: [PlaceholderAPI]
 libraries:
   - org.xerial:sqlite-jdbc:${sqlite.fallback.version}
 commands:
   market:
     description: Open the market or use a market subcommand.
-    usage: /market [buy|sell|orders|cancel|mailbox|claim|lang|help]
+    usage: /market [buy|sell|orders|cancel|mailbox|claim|lang|alerts|help]
     aliases: [pazar, em]
     permission: eldrosmarket.use
   marketadmin:
     description: Market administration.
-    usage: /marketadmin <reload|verify|safemode|recovery>
+    usage: /marketadmin <reload|verify|safemode|freeze|recovery>
     aliases: [pazaradmin]
     permission: eldrosmarket.admin
 permissions:
@@ -31,3 +32,9 @@ permissions:
   eldrosmarket.admin:
     description: All admin commands.
     default: op
+  eldrosmarket.bypass.restrictions:
+    description: Use the market in disabled worlds and game modes. Not given to ops by default.
+    default: false
+  eldrosmarket.fee.exempt:
+    description: Pay no buy-order creation fee. Not given to ops by default.
+    default: false

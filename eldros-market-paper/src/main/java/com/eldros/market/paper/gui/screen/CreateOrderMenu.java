@@ -45,13 +45,23 @@ public final class CreateOrderMenu extends Menu {
     }
 
     private void change(Draft next) {
+        warnIfLimited(next.price(), rt.limitsFor(next.item().getType()));
         draft = clamp(next);
         refreshPreview();
         redraw();
     }
 
+    /** The +/- buttons stop at the item's price range; say so instead of silently changing the price. */
+    private void warnIfLimited(Money wanted, LimitSettings l) {
+        if (wanted.compareTo(l.minUnitPrice()) < 0) {
+            actions.validation(player, com.eldros.market.core.service.ValidationCode.PRICE_TOO_LOW, l);
+        } else if (wanted.compareTo(l.maxUnitPrice()) > 0) {
+            actions.validation(player, com.eldros.market.core.service.ValidationCode.PRICE_TOO_HIGH, l);
+        }
+    }
+
     private Draft clamp(Draft d) {
-        LimitSettings l = rt.settings().limits();
+        LimitSettings l = rt.limitsFor(d.item().getType());
         long qty = Math.max(1, Math.min(d.quantity(), l.maxQuantityPerOrder()));
         Money price = d.price();
         if (price.compareTo(l.minUnitPrice()) < 0) {
@@ -67,7 +77,7 @@ public final class CreateOrderMenu extends Menu {
         long token = ++previewToken;
         preview = null;
         if (template.isEmpty()) {
-            preview = new BookView.Preview(0, Money.ZERO, false);
+            preview = new BookView.Preview(0, Money.ZERO, false, java.util.Optional.empty());
             return;
         }
         load(actions.preview(player, draft.side(), template.get(), draft.price(), draft.quantity()), p -> {
@@ -133,7 +143,7 @@ public final class CreateOrderMenu extends Menu {
             button("qty-plus-" + step, c -> change(draft.withQuantity(draft.quantity() + step)), tags);
         }
         button("qty-max", c -> change(draft.withQuantity(buy ? rt.settings().limits().maxQuantityPerOrder() : Math.max(1, owned()))), tags);
-        button("qty-input", c -> ask("menu.prompt.quantity", text -> {
+        button("qty-input", c -> ask("menu.prompt.quantity", Long.toString(draft.quantity()), text -> {
             AmountParser.Result<Long> q = AmountParser.parseQuantity(text);
             if (!q.isOk()) {
                 actions.validation(player, q.error());
@@ -146,7 +156,7 @@ public final class CreateOrderMenu extends Menu {
             button("price-minus-" + step, c -> change(draft.withPrice(shift(draft.price(), -step))), tags);
             button("price-plus-" + step, c -> change(draft.withPrice(shift(draft.price(), step))), tags);
         }
-        button("price-input", c -> ask("menu.prompt.price", text -> {
+        button("price-input", c -> ask("menu.prompt.price", menus.plain(draft.price()), text -> {
             AmountParser.Result<Money> m = AmountParser.parseMoney(text, rt.settings().scale());
             if (!m.isOk()) {
                 actions.validation(player, m.error());
@@ -159,17 +169,16 @@ public final class CreateOrderMenu extends Menu {
         button("back", c -> menus.openBook(player, draft.item()));
     }
 
-    /** Closes the menu, asks in chat, and reopens with the answer applied (or unchanged on cancel). */
-    private void ask(String promptKey, java.util.function.Function<String, Draft> apply) {
+    /** Asks for a value (anvil or chat) and reopens with the answer applied (or unchanged on cancel). */
+    private void ask(String promptKey, String initial, java.util.function.Function<String, Draft> apply) {
         Draft before = draft;
-        player.closeInventory();
-        msg.send(player, promptKey);
-        menus.prompt().ask(player, text -> {
+        menus.input(player, promptKey, initial, text -> {
             Draft next = apply.apply(text);
             // A typed value outside the limits is reported, then clamped, so the player knows why it changed.
-            var check = rt.limits().validate(next.price(), next.quantity(), 0, Integer.MAX_VALUE);
+            LimitSettings l = rt.limitsFor(next.item().getType());
+            var check = new com.eldros.market.core.service.LimitPolicy(l).validate(next.price(), next.quantity(), 0, Integer.MAX_VALUE);
             if (!check.isOk()) {
-                actions.validation(player, check.code());
+                actions.validation(player, check.code(), l);
             }
             menus.openCreate(player, clamp(next));
         }, () -> menus.openCreate(player, before));

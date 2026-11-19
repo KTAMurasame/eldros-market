@@ -1,4 +1,7 @@
-# QA Raporu — Eldros Market 0.1.0-SNAPSHOT (F5)
+# QA Raporu — Eldros Market 0.1.0
+
+> §1–§9: ilk yapı (F5, 2026-11-18). **§10: 0.1.0'a eklenen özelliklerin testleri ve yayın öncesi uyumluluk turu
+> (2026-11-18/19).** Bir madde iki yerde farklıysa §10 geçerlidir.
 
 > Tarih: 2026-11-18. "04 §…" ve "03 §…" atıfları yayımlanmamış iç test planı ve mimari belgesine aittir.
 > Etiketler: **[Doğrulandı]** bu raporda çalıştırıldı ve sonucu görüldü · **[Gözlem]** gerçek sağlayıcı/sunucu davranışı, garanti değil · **[Ölçülmedi]** / **[Test edilmedi]** yapılmadı, nedeni yazılı.
@@ -178,6 +181,13 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 - Sürüm geçişleri M-1/M-2 (1.21.x → 26.3 aynı DB); düşürme reddi yalnızca 26.3 → 1.21.4 için denendi (F3).
 - §6'daki ölçülmeyen performans satırları.
 
+## 8a. Açık gözlemler
+
+- **Kapanışta takılma (1 kez, 1.21.4, Java 21):** `stop` sonrası eklenti düzgün kapandı ve tüm dünyalar kaydedildi
+  ("All dimensions are saved"), ardından süreç "Awaiting termination of I/O pool" satırında ~50 dakika kapanmadı ve
+  zorla sonlandırıldı. Veri kaybı yok. Diğer tüm kapanışlar (onlarca, üç sürüm) normal bitti. Neden bilinmiyor; tekrar
+  olursa sonlandırmadan önce iş parçacığı dökümü alınacak.
+
 ## 9. Bilinen sınırlamalar
 
 - **Ekonomi sağlayıcısının kalıcılığı garanti dışı** (04 §3.7). EssentialsX 2.22.0'ın çökmeden hemen önceki değişikliği kaybettiği gözlendi (§4.4). Karantinadaki para işlemlerinde admin oyuncu bakiyesini kontrol etmeli.
@@ -185,3 +195,45 @@ Hedefler karşılandı. Maks değerlerde tekil sıçramalar var (287 ms); nedeni
 - Çöken süreç son konsol satırlarını yazamayabilir (Paper'ın asenkron logu); kurtarma kararları konsola değil veritabanına ve effect log'a dayanır.
 - Vanilla eşya adları oyuncunun istemci dilinde görünür (eklenti dili yalnızca menü metinlerini değiştirir). Arama İngilizce kimlik + dil dosyasındaki sözlükle çalışır; sözlükte olmayan Türkçe kelimeler bulunmaz.
 - Katalog, veri gerektiren eşyaları (iksir, büyülü kitap, kafa vb.) listelemez; bunlar "elindeki eşya" ile işlem görür.
+
+## 10. 0.1.0'a eklenen özellikler ve yayın öncesi tur (2026-11-18/19)
+
+**Otomatik testler [Doğrulandı]:** `mvn clean verify` (JDK 25): core **273**, paper **78** test, 0 başarısız. Çökme
+kurtarma testleri her alış/satış/para/eşya penceresini anlık işlemler, emir düzenleme ve alış emri ücreti için de
+çalıştırır. 26.3 API'sine karşı derleme (`-Pcompat-26`) başarılı. Yayın JAR'ında `debug/**` sınıfı **0**.
+
+### 10.1 Özellikler, Paper 1.21.4 (gerçek istemci ve mineflayer bot oyuncular) [Doğrulandı]
+| Özellik | Denenen | Sonuç |
+|---|---|---|
+| Bildirimler | Aynı fiyattaki dolumlar tek satır; giriş özeti; `/market alerts` susturma | Geçti |
+| Anlık al/sat | Sat 10 → 500,00; 2 fiyat seviyesinden al 15 → 850; `/market sell all` → 156,00 | Geçti |
+| Emir düzenleme | Fiyat artırma farkı tahsil (52), eşya ekleme (5 adet envanterden), fiyat düşürme farkı posta kutusuna (60) | Geçti |
+| Vergi ve ücret | Gerçek v1 veritabanının yedekli yükseltilmesi; 45,60'tan vergi 1,14; ücret 1,50 | Geçti |
+| Fiyat aralığı, kısıtlar, dondurma | Eşya bazlı min/max; creative ve kapalı dünya engeli; dondurma yeniden başlatmada da açık | Geçti |
+| PlaceholderAPI 2.12.3 | Tüm yer tutucular, TR/EN sayı biçimi, `/papi reload` sonrası kayıt | Geçti |
+| Kategori ve sıralama | 6 sıralama, kategori ileri/geri, katalog kategorisi, `categories.yml` reload | Geçti |
+| Otomatik para yatırma | Çevrimiçi, çevrimdışı + giriş, susturulmuş, creative | Geçti |
+| Örs girişi | Arama, fiyat (`2.5k`), adet, hatalı giriş, Esc; örs açıkken ölüm dahil hiçbir durumda kağıt envantere/yere geçmedi | Geçti (bot ve gerçek istemci) |
+| Dil dosyası güncellemesi | Eski kurulumdaki değişmemiş varsayılan metinler yenilendi (EN 9, TR 4); özelleştirilmiş metinler korundu (birim testi) | Geçti |
+
+### 10.2 Yeni çökme denemeleri (1.21.4, test JAR'ı) [Doğrulandı]
+| Vaka | Nokta | Sonuç |
+|---|---|---|
+| Otomatik yatırma sırasında çökme | MONEY_PROVIDER_DONE | QUARANTINED; EssentialsX yatırmayı kaybetmişti (bakiye 492); `not-applied` sonrası giriş yapınca otomatik yatırıldı → 512, tam bir kez |
+| Konsoldan teslim almada çökme, karantina oyuncu girmeden çözüldü | MONEY_PROVIDER_DONE | Girişte bayat "inceleniyor" bildirimi gösterilmedi, sessizce kapandı; 40,00 posta kutusuna döndü |
+
+`verify` her adımda temiz. Toplam gerçek sunucu çökme denemesi: 1.21.4'te 20, 26.3'te 4 (eski build ile).
+
+### 10.3 Uyumluluk turu, yayın JAR'ı [Doğrulandı]
+| Paper | Java | Köprü | Denenen | Sonuç |
+|---|---|---|---|---|
+| 1.21.11 (build 132) | 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Eski (v1) veritabanının yedekli yükseltilmesi; bot oyuncularla alış/satış eşleşmesi, kategori, sıralama, örsle arama, posta kutusu, dondurma, `verify` | Geçti |
+| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | Eski veritabanının yedekli yükseltilmesi; gerçek istemciyle menüler, örsle arama ve fiyat, satış emri, iptal, teslim alma, `verify` | Geçti |
+
+### 10.4 Bu özelliklerde test edilmeyenler
+- Bildirim sesi ve "…ve N kayıt daha" satırı oyunda; susturmanın yeniden başlatmadan sonra kalması.
+- Anlık işlem sırasında defterin değişmesi ve düzenleme sırasında eşzamanlı dolum (yalnızca birim testleri).
+- 1.21.11 ve 26.3'te anlık işlemin gerçekten dolması (1.21.11'de yalnızca "alıcı yok" yolu), emir düzenleme, vergi.
+- 26.3 ve 1.21.11'de yeni build ile çökme testi; otomatik yatırmanın diğer çökme pencereleri gerçek sunucuda.
+- PlaceholderAPI 2.11.6 ile çalışma (yalnızca ona karşı derlendi; 2.12.3 ile denendi).
+- Folia, Spigot, Purpur; 1.21.5–1.21.10 ve 26.1–26.2.

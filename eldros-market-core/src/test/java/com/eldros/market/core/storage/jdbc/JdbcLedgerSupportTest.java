@@ -100,7 +100,7 @@ class JdbcLedgerSupportTest {
                 null, at);
         var sell = ledger.insertOrder(c, new com.eldros.market.core.domain.NewOrder(seller, com.eldros.market.api.model.OrderSide.SELL, t, p, qty, null),
                 null, at);
-        ledger.insertTrade(c, new com.eldros.market.core.engine.Fill(sell.id(), buy.id(), buy.id(), sell.id(), buyer, seller, t, qty, p, p), at);
+        ledger.insertTrade(c, new com.eldros.market.core.engine.Fill(sell.id(), buy.id(), buy.id(), sell.id(), buyer, seller, t, qty, p, p), com.eldros.market.core.domain.Money.ZERO, at);
     }
 
     @Test

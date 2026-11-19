@@ -12,6 +12,7 @@ import com.eldros.market.core.port.FaultInjector;
 import com.eldros.market.core.recovery.RecoveryService;
 import com.eldros.market.core.safety.SafeMode;
 import com.eldros.market.core.service.LimitPolicy;
+import com.eldros.market.core.service.NotificationDigest;
 import com.eldros.market.core.settlement.SettlementService;
 import com.eldros.market.core.storage.SchemaException;
 import com.eldros.market.core.storage.jdbc.JdbcJournal;
@@ -30,8 +31,10 @@ import com.eldros.market.paper.item.TemplateRegistry;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -78,6 +81,8 @@ public final class MarketRuntime {
     private final JdbcLedger ledger = new JdbcLedger();
     private final JdbcJournal journal = new JdbcJournal();
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
+    /** Players whose join summary is being built; the periodic sender leaves them alone so nothing shows twice. */
+    private final Set<UUID> joinSummaryPending = ConcurrentHashMap.newKeySet();
     private final List<BukkitTask> tasks = new ArrayList<>();
 
     private volatile PluginSettings settings;
@@ -307,6 +312,7 @@ public final class MarketRuntime {
 
     private void scheduleTasks() {
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::deliverNotifications, 60L, 60L));
+        tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::autoCollect, 80L, 60L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::sweepExpired, 1_200L, 1_200L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::tryLeaveSafeMode, 600L, 600L));
     }
@@ -387,6 +393,49 @@ public final class MarketRuntime {
         return limits;
     }
 
+    /** Limits for one item type: the global ones, with the price range of its {@code limits.per-item} rule if any. */
+    public com.eldros.market.core.service.LimitSettings limitsFor(org.bukkit.Material material) {
+        return settings.prices().forItem(material.getKey().toString());
+    }
+
+    public com.eldros.market.core.service.LimitSettings limitsFor(TemplateId template) {
+        return templates().has(template) ? limitsFor(templates().stack(template, 1).getType()) : settings.limits();
+    }
+
+    public LimitPolicy policyFor(org.bukkit.Material material) {
+        return new LimitPolicy(limitsFor(material));
+    }
+
+    // --- trading freeze ---------------------------------------------------------------------------
+
+    private volatile Boolean frozen;
+
+    private Path freezeFile() {
+        return plugin.getDataFolder().toPath().resolve("trading-frozen");
+    }
+
+    /** Trading freeze set by an admin: no new orders, instant trades or edits; cancel and mailbox still work. */
+    public boolean isFrozen() {
+        Boolean f = frozen;
+        if (f == null) {
+            f = Files.exists(freezeFile());
+            frozen = f;
+        }
+        return f;
+    }
+
+    /** Sets the freeze and keeps it across restarts (a marker file in the plugin folder). */
+    public void setFrozen(boolean on, String by) throws java.io.IOException {
+        if (on) {
+            Files.createDirectories(freezeFile().getParent());
+            Files.writeString(freezeFile(), "Trading frozen by " + by + " at " + java.time.Instant.now() + System.lineSeparator());
+        } else {
+            Files.deleteIfExists(freezeFile());
+        }
+        frozen = on;
+        log.info("Trading " + (on ? "frozen" : "unfrozen") + " by " + by);
+    }
+
     void applySettings(PluginSettings next) {
         settings = next;
         filter = new ItemFilter(next);
@@ -461,40 +510,200 @@ public final class MarketRuntime {
             log.log(Level.SEVERE, "Reconciling " + player.getName() + " failed", e);
             return null;
         });
-        onEngine(() -> tx.inTransaction(c -> journal.availableFor(c, id).size())).thenAcceptAsync(count -> {
+        sendJoinSummary(player, id);
+        // With auto-collect on, money is about to be deposited anyway: only items are worth a reminder.
+        boolean onlyItems = settings.autoCollectMoney();
+        onEngine(() -> tx.inTransaction(c -> (int) journal.availableFor(c, id).stream()
+                .filter(r -> !onlyItems || !"MONEY".equals(r.kind())).count())).thenAcceptAsync(count -> {
             if (count > 0 && player.isOnline()) {
                 messages.send(player, "mailbox.waiting", Messages.text("count", count));
             }
         }, mainExecutor);
     }
 
+    /**
+     * Everything that happened while the player was away, folded into a few lines under one header. The periodic
+     * sender skips the player until the rows are marked delivered, so nothing is shown twice. The engine thread is
+     * single-threaded, so a periodic read queued after our mark sees the rows as delivered.
+     */
+    private void sendJoinSummary(Player player, PlayerId id) {
+        UUID uuid = player.getUniqueId();
+        joinSummaryPending.add(uuid);
+        onEngine(() -> NotificationDigest.digest(entries(tx.inTransaction(c -> pendingFor(c, id)))))
+                .thenAcceptAsync(lines -> {
+                    if (lines.isEmpty() || !player.isOnline()) {
+                        joinSummaryPending.remove(uuid);
+                        return;
+                    }
+                    int max = settings.joinSummaryMaxLines();
+                    messages.send(player, "notify.away.header");
+                    lines.stream().limit(max).forEach(l -> messages.send(player, shownKey(l.key()), notificationArgs(player, l.key(), l.args())));
+                    if (lines.size() > max) {
+                        messages.send(player, "notify.away.more", Messages.text("count", lines.size() - max));
+                    }
+                    playNotifySound(player);
+                    List<Long> ids = lines.stream().flatMap(l -> l.ids().stream()).toList();
+                    onEngine(() -> tx.inTransaction(c -> {
+                        ledger.markDelivered(c, ids, clock.millis());
+                        return null;
+                    })).whenComplete((ok, e) -> joinSummaryPending.remove(uuid));
+                }, mainExecutor)
+                .exceptionally(e -> {
+                    joinSummaryPending.remove(uuid);
+                    log.log(Level.WARNING, "Join summary for " + player.getName() + " failed; the periodic sender will retry", e);
+                    return null;
+                });
+    }
+
+    // --- auto-collect (mailbox.auto-collect-money) ------------------------------------------------------
+
+    private static final int AUTO_COLLECT_PER_ROUND = 20;
+    private final AutoCollectPolicy.Backoff collectBackoff = new AutoCollectPolicy.Backoff(60_000);
+
+    /**
+     * Deposits online players' market money without a trip to the mailbox. Each row goes through the normal claim
+     * (journal, effect log, recovery), under the player's action lock, one row after another; items always stay in
+     * the mailbox. A failed or uncertain deposit pauses the player for a minute; an uncertain one is quarantined by the
+     * claim itself, exactly as for a manual claim.
+     */
+    private void autoCollect() {
+        if (!ready || !settings.autoCollectMoney() || safeMode.isActive()) {
+            return;
+        }
+        long now = clock.millis();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID uuid = p.getUniqueId();
+            if (joinSummaryPending.contains(uuid) || !collectBackoff.ready(uuid, now) || restriction(p).isPresent()
+                    || !p.hasPermission("eldrosmarket.use")) {
+                continue;
+            }
+            if (!tryLock(uuid)) {
+                continue; // the player is doing something in the market; next round
+            }
+            PlayerId id = new PlayerId(uuid);
+            onEngine(() -> tx.inTransaction(c -> AutoCollectPolicy.pick(journal.availableFor(c, id), AUTO_COLLECT_PER_ROUND)))
+                    .thenCompose(rows -> collectNext(id, rows, 0, Money.ZERO))
+                    .whenCompleteAsync((result, error) -> {
+                        unlock(uuid);
+                        if (error != null) {
+                            collectBackoff.failed(uuid, clock.millis());
+                            log.log(Level.WARNING, "Auto-collect for " + p.getName() + " failed; retrying in a minute", error);
+                            return;
+                        }
+                        if (result.stopped()) {
+                            collectBackoff.failed(uuid, clock.millis());
+                        }
+                        if (result.total().minor() > 0 && p.isOnline() && !alertsMuted(p)) {
+                            messages.send(p, "mailbox.auto-collected", messages.money(messages.languageOf(p), "amount",
+                                    result.total(), settings.scale()));
+                        }
+                    }, mainExecutor);
+        }
+    }
+
+    private record Collected(Money total, boolean stopped) {
+    }
+
+    private java.util.concurrent.CompletableFuture<Collected> collectNext(PlayerId id, List<JdbcJournal.MailboxRow> rows,
+                                                                         int index, Money total) {
+        if (index >= rows.size()) {
+            return java.util.concurrent.CompletableFuture.completedFuture(new Collected(total, false));
+        }
+        JdbcJournal.MailboxRow row = rows.get(index);
+        return ops.claim(id, row.id()).thenCompose(r -> {
+            if (r.status() == com.eldros.market.core.market.OpResult.Status.DONE) {
+                return collectNext(id, rows, index + 1, total.plus(row.amount()));
+            }
+            if (r.status() == com.eldros.market.core.market.OpResult.Status.QUARANTINED) {
+                log.warning("Auto-collect of mailbox #" + row.id() + " for " + id.value() + " had an uncertain outcome and is"
+                        + " in quarantine (/marketadmin recovery list)");
+            }
+            return java.util.concurrent.CompletableFuture.completedFuture(new Collected(total, true));
+        });
+    }
+
+    /** Why the market is closed for {@code p} right now (world or game mode), as a message key; empty if open. */
+    public Optional<String> restriction(Player p) {
+        String perm = "eldrosmarket.bypass.restrictions";
+        if (p.isPermissionSet(perm) && p.hasPermission(perm)) {
+            return Optional.empty();
+        }
+        if (settings.disabledWorlds().contains(p.getWorld().getName().toLowerCase(java.util.Locale.ROOT))) {
+            return Optional.of("general.disabled-world");
+        }
+        if (settings.disabledGameModes().contains(p.getGameMode())) {
+            return Optional.of("general.disabled-gamemode");
+        }
+        return Optional.empty();
+    }
+
+    private static final String REVIEW_NOTICE = "notify.recovery.review";
+
+    /**
+     * Pending notifications of {@code id}, minus "an action is being reviewed" notices that are no longer true (an
+     * admin resolved every quarantined operation of the player before they saw the notice); those are closed silently.
+     */
+    private List<Notification> pendingFor(java.sql.Connection c, PlayerId id) throws java.sql.SQLException {
+        List<Notification> list = ledger.pendingNotifications(c, id);
+        if (list.stream().noneMatch(n -> REVIEW_NOTICE.equals(n.messageKey()))) {
+            return list;
+        }
+        boolean underReview = journal.byState(c, com.eldros.market.core.journal.JournalEntry.State.QUARANTINED).stream()
+                .anyMatch(e -> e.player().equals(id));
+        if (underReview) {
+            return list;
+        }
+        ledger.markDelivered(c, list.stream().filter(n -> REVIEW_NOTICE.equals(n.messageKey())).map(Notification::id).toList(),
+                clock.millis());
+        return list.stream().filter(n -> !REVIEW_NOTICE.equals(n.messageKey())).toList();
+    }
+
+    /** The text shown for a notification: sale lines drop the mailbox hint when money is collected automatically. */
+    private String shownKey(String key) {
+        if (settings.autoCollectMoney() && (key.equals("notify.trade.sold") || key.equals("notify.trade.sold-taxed"))) {
+            return key + "-auto";
+        }
+        return key;
+    }
+
     private void deliverNotifications() {
         if (!ready) {
             return;
         }
-        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        List<Player> online = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!joinSummaryPending.contains(p.getUniqueId())) {
+                online.add(p);
+            }
+        }
         if (online.isEmpty()) {
             return;
         }
         onEngine(() -> {
-            Map<UUID, List<Notification>> pending = new HashMap<>();
+            Map<UUID, List<NotificationDigest.Line>> pending = new HashMap<>();
             for (Player p : online) {
-                List<Notification> list = tx.inTransaction(c -> ledger.pendingNotifications(c, new PlayerId(p.getUniqueId())));
+                List<Notification> list = tx.inTransaction(c -> pendingFor(c, new PlayerId(p.getUniqueId())));
                 if (!list.isEmpty()) {
-                    pending.put(p.getUniqueId(), list);
+                    pending.put(p.getUniqueId(), NotificationDigest.digest(entries(list)));
                 }
             }
             return pending;
         }).thenAcceptAsync(pending -> {
             List<Long> delivered = new ArrayList<>();
-            pending.forEach((uuid, list) -> {
+            pending.forEach((uuid, lines) -> {
                 Player p = Bukkit.getPlayer(uuid);
-                if (p == null) {
+                if (p == null || joinSummaryPending.contains(uuid)) {
                     return;
                 }
-                for (Notification n : list) {
-                    messages.send(p, n.messageKey(), notificationArgs(p, n));
-                    delivered.add(n.id());
+                boolean muted = alertsMuted(p);
+                for (NotificationDigest.Line l : lines) {
+                    if (!muted) {
+                        messages.send(p, shownKey(l.key()), notificationArgs(p, l.key(), l.args()));
+                    }
+                    delivered.addAll(l.ids());
+                }
+                if (!muted) {
+                    playNotifySound(p);
                 }
             });
             if (!delivered.isEmpty()) {
@@ -506,14 +715,52 @@ public final class MarketRuntime {
         }, mainExecutor);
     }
 
+    private static List<NotificationDigest.Entry> entries(List<Notification> rows) {
+        return rows.stream().map(n -> new NotificationDigest.Entry(n.id(), n.messageKey(), n.args())).toList();
+    }
+
+    private void playNotifySound(Player p) {
+        String sound = settings.notifySound();
+        if (!sound.isEmpty()) {
+            p.playSound(p.getLocation(), sound, 1.0f, 1.0f);
+        }
+    }
+
+    // --- alert mute (stored on the player, survives restarts, no database row) ----------------------
+
+    private NamespacedKey alertsKey() {
+        return new NamespacedKey(plugin, "alerts_muted");
+    }
+
+    /** Muted players get no live chat lines or sounds; their mailbox and join summary are unaffected. */
+    public boolean alertsMuted(Player p) {
+        return p.getPersistentDataContainer().has(alertsKey(), PersistentDataType.BYTE);
+    }
+
+    /** Flips the mute and returns the new state (true = muted). Main thread only. */
+    public boolean toggleAlerts(Player p) {
+        if (alertsMuted(p)) {
+            p.getPersistentDataContainer().remove(alertsKey());
+            return false;
+        }
+        p.getPersistentDataContainer().set(alertsKey(), PersistentDataType.BYTE, (byte) 1);
+        return true;
+    }
+
     /** Numeric outbox args → placeholders (see SettlementService / RecoveryService for each key's args). */
-    private TagResolver[] notificationArgs(Player p, Notification n) {
+    private TagResolver[] notificationArgs(Player p, String key, List<Long> a) {
         String lang = messages.languageOf(p);
-        List<Long> a = n.args();
-        return switch (n.messageKey()) {
+        if (!NotificationDigest.hasExpectedArgs(key, a)) {
+            return new TagResolver[0];
+        }
+        return switch (key) {
             case "notify.trade.sold", "notify.trade.bought" -> new TagResolver[] {
                     Messages.component("item", templates.name(new TemplateId(a.get(0)))), Messages.text("qty", a.get(1)),
                     messages.money(lang, "price", Money.ofMinor(a.get(2)), settings.scale())};
+            case "notify.trade.sold-taxed" -> new TagResolver[] {
+                    Messages.component("item", templates.name(new TemplateId(a.get(0)))), Messages.text("qty", a.get(1)),
+                    messages.money(lang, "price", Money.ofMinor(a.get(2)), settings.scale()),
+                    messages.money(lang, "tax", Money.ofMinor(a.get(3)), settings.scale())};
             case "notify.order.cancelled", "notify.order.expired", "notify.recovery.items" -> new TagResolver[] {
                     Messages.component("item", templates.name(new TemplateId(a.get(0)))), Messages.text("qty", a.get(1))};
             case "notify.recovery.refund" -> new TagResolver[] {messages.money(lang, "amount", Money.ofMinor(a.get(0)), settings.scale())};

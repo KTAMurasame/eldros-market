@@ -1,0 +1,14 @@
+# Layout of this screen. Texts (titles, names, lore) are in lang/<language>.yml under "menu.".
+# slot: 0 = top-left, 9 per row. slot: -1 hides a button. material: any item id (e.g. CHEST).
+# A wrong value is reported in the console with its key, and the bundled default is used instead.
+rows: 6
+filler: GRAY_STAINED_GLASS_PANE
+# Items that can be sold right now, one slot per kind.
+slot-groups:
+  items: ["0-44"]
+buttons:
+  confirm: {slot: 48, material: LIME_CONCRETE}
+  summary: {slot: 49, material: GOLD_INGOT}
+  cancel: {slot: 50, material: RED_CONCRETE}
+  loading: {slot: 22, material: CLOCK}
+  empty: {slot: 22, material: PAPER}

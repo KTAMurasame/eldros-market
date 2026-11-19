@@ -110,6 +110,242 @@ class SettlementServiceTest {
         assertThat(rows("SELECT COUNT(*) FROM trades")).containsExactly("0");
     }
 
+    private NewOrder instant(PlayerId owner, OrderSide side, long price, long quantity) {
+        return NewOrder.immediate(owner, side, diamond, Money.ofMinor(price), quantity);
+    }
+
+    // Break: an instant sell leaves its unfilled part resting in the book, or the unsold items vanish.
+    @Test
+    void anInstantSellThatOnlyPartlyFillsReturnsTheRestAndLeavesNothingInTheBook() throws SQLException {
+        settlement.place(tx, order(B, BUY, 10, 3), null);
+
+        settlement.place(tx, instant(A, SELL, 10, 5), null);
+
+        assertThat(rows("SELECT side, qty_filled, escrow_money, status FROM orders ORDER BY id"))
+                .containsExactly("BUY|3|0|FILLED", "SELL|3|0|CANCELLED");
+        assertThat(rows("SELECT owner_uuid = '" + A.value() + "', kind, qty, amount, reason FROM mailbox ORDER BY id"))
+                .containsExactlyInAnyOrder("0|ITEM|3|0|TRADE_ITEM", "1|MONEY|0|30|TRADE_MONEY", "1|ITEM|2|0|UNFILLED_REFUND");
+        assertThat(rows("SELECT type FROM order_events WHERE order_id = 2 ORDER BY id"))
+                .containsExactly("CREATED", "FILLED_PART", "CANCELLED");
+        // The instant trader sees the result directly; only the resting side is notified (no duplicate chat line).
+        assertThat(rows("SELECT player_uuid = '" + B.value() + "', message_key FROM notifications ORDER BY id"))
+                .containsExactly("1|notify.trade.bought");
+        assertThat(engine.book(diamond).asks()).isEmpty();
+        assertThat(engine.book(diamond).bids()).isEmpty();
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: the unfilled part of an instant buy keeps its escrow, or the price improvement is lost.
+    @Test
+    void anInstantBuyRefundsUnusedEscrowAndPriceImprovement() throws SQLException {
+        settlement.place(tx, order(B, SELL, 8, 2), null);
+        settlement.place(tx, order(B, SELL, 10, 1), null);
+
+        settlement.place(tx, instant(A, BUY, 10, 5), null);
+
+        assertThat(rows("SELECT side, qty_filled, escrow_money, status FROM orders WHERE side = 'BUY'"))
+                .containsExactly("BUY|3|0|CANCELLED");
+        assertThat(rows("SELECT kind, qty, amount, reason FROM mailbox WHERE owner_uuid = '" + A.value() + "' ORDER BY id"))
+                .containsExactly("ITEM|2|0|TRADE_ITEM", "MONEY|0|4|PRICE_IMPROVEMENT", "ITEM|1|0|TRADE_ITEM", "MONEY|0|20|UNFILLED_REFUND");
+        assertThat(engine.book(diamond).asks()).isEmpty();
+        assertThat(engine.book(diamond).bids()).isEmpty();
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: a fully filled instant order is "cancelled" a second time and refunds money it never held.
+    @Test
+    void aFullyFilledInstantOrderIsSimplyFilled() throws SQLException {
+        settlement.place(tx, order(B, BUY, 10, 5), null);
+
+        settlement.place(tx, instant(A, SELL, 10, 5), null);
+
+        assertThat(rows("SELECT status FROM orders ORDER BY id")).containsExactly("FILLED", "FILLED");
+        assertThat(rows("SELECT COUNT(*) FROM mailbox WHERE reason = 'UNFILLED_REFUND'")).containsExactly("0");
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: an instant order with nothing to match rests in the book like a normal order.
+    @Test
+    void anInstantOrderWithNoMatchIsReturnedWhole() throws SQLException {
+        settlement.place(tx, instant(A, SELL, 10, 4), null);
+
+        assertThat(rows("SELECT qty_filled, status FROM orders")).containsExactly("0|CANCELLED");
+        assertThat(rows("SELECT kind, qty, reason FROM mailbox")).containsExactly("ITEM|4|UNFILLED_REFUND");
+        assertThat(engine.book(diamond).asks()).isEmpty();
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: the instant order's own limit is ignored and it trades at a worse price than the player accepted.
+    @Test
+    void anInstantSellNeverTradesBelowItsLimit() throws SQLException {
+        settlement.place(tx, order(B, BUY, 10, 2), null);
+        settlement.place(tx, order(B, BUY, 7, 5), null);
+
+        settlement.place(tx, instant(A, SELL, 9, 5), null);
+
+        assertThat(rows("SELECT qty, unit_price FROM trades")).containsExactly("2|10");
+        assertThat(engine.book(diamond).bids()).singleElement().satisfies(o -> assertThat(o.unitPrice()).isEqualTo(Money.ofMinor(7)));
+    }
+
+    // Break: the engine is rebuilt from a database that still holds the instant order as ACTIVE after a restart.
+    @Test
+    void afterARestartTheInstantOrderIsNotReloaded() {
+        settlement.place(tx, order(B, BUY, 10, 1), null);
+        settlement.place(tx, instant(A, SELL, 10, 3), null);
+
+        MatchingEngine fresh = new MatchingEngine();
+        new SettlementService(fresh, ledger, CLOCK).loadAndReplay(tx);
+
+        assertThat(fresh.book(diamond).asks()).isEmpty();
+        assertThat(fresh.book(diamond).bids()).isEmpty();
+    }
+
+    // --- sales tax ---------------------------------------------------------------------------------
+
+    // Break: the tax is charged to the buyer, not deducted from the seller, or never recorded on the trade.
+    @Test
+    void aTaxedSellerReceivesTheProceedsMinusTheTax() throws SQLException {
+        settlement.place(tx, order(A, BUY, 10, 4), null);
+
+        settlement.place(tx, order(B, SELL, 10, 4).withFees(250, Money.ZERO), null); // 2.5% of 40 = 1
+
+        assertThat(rows("SELECT owner_uuid = '" + B.value() + "', kind, qty, amount, reason FROM mailbox ORDER BY id"))
+                .containsExactlyInAnyOrder("0|ITEM|4|0|TRADE_ITEM", "1|MONEY|0|39|TRADE_MONEY");
+        assertThat(rows("SELECT qty, unit_price, tax FROM trades")).containsExactly("4|10|1");
+        assertThat(rows("SELECT message_key, args FROM notifications WHERE player_uuid = '" + B.value() + "'"))
+                .containsExactly("notify.trade.sold-taxed|" + diamond.value() + "|4|10|1");
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: the rate of whoever arrives last is used instead of the rate stored on the seller's own order.
+    @Test
+    void theSellOrdersOwnRateAppliesWhenItIsTheRestingSide() throws SQLException {
+        settlement.place(tx, order(B, SELL, 10, 4).withFees(1_000, Money.ZERO), null); // 10%
+        settlement.place(tx, order(A, BUY, 10, 4).withFees(5_000, Money.ZERO), null);  // a buy order's rate is never used
+
+        assertThat(rows("SELECT tax FROM trades")).containsExactly("4");
+        assertThat(rows("SELECT amount FROM mailbox WHERE reason = 'TRADE_MONEY'")).containsExactly("36");
+    }
+
+    @Test
+    void untaxedSellersStillGetTheOldNotification() throws SQLException {
+        settlement.place(tx, order(A, BUY, 10, 1), null);
+        settlement.place(tx, order(B, SELL, 10, 1), null);
+
+        assertThat(rows("SELECT message_key FROM notifications WHERE player_uuid = '" + B.value() + "'"))
+                .containsExactly("notify.trade.sold");
+        assertThat(rows("SELECT tax FROM trades")).containsExactly("0");
+    }
+
+    // Break: editing a sell order drops its tax rate (a free way to dodge the tax).
+    @Test
+    void anEditedSellOrderKeepsItsTaxRate() throws SQLException {
+        settlement.place(tx, order(A, SELL, 10, 4).withFees(1_000, Money.ZERO), null);
+        edit(1, 4, 12, 0, 0, 0);
+
+        settlement.place(tx, order(B, BUY, 12, 4), null);
+
+        assertThat(rows("SELECT unit_price, tax FROM trades")).containsExactly("12|4");
+    }
+
+    // --- edit (re-price / add quantity) -------------------------------------------------------------
+
+    private SettlementService.EditResult edit(long orderId, long expectedRemaining, long newPrice, long addQty,
+                                              long fundedMoney, long fundedItems) {
+        return settlement.edit(tx, new SettlementService.EditSpec(A, diamond, orderId, expectedRemaining,
+                Money.ofMinor(newPrice), addQty), Money.ofMinor(fundedMoney), fundedItems, null);
+    }
+
+    // Break: raising a bid keeps the old escrow, so the order is under-funded (I1) or the extra money vanishes.
+    @Test
+    void raisingABidReplacesTheOrderWithTheExtraEscrow() throws SQLException {
+        settlement.place(tx, order(A, BUY, 5, 10), null);
+
+        SettlementService.EditResult r = edit(1, 10, 7, 0, 20, 0);
+
+        assertThat(r.applied()).isTrue();
+        assertThat(rows("SELECT id, unit_price, qty_total, escrow_money, status FROM orders ORDER BY id"))
+                .containsExactly("1|5|10|0|CANCELLED", "2|7|10|70|ACTIVE");
+        assertThat(rows("SELECT COUNT(*) FROM mailbox")).containsExactly("0");
+        assertThat(engine.book(diamond).bids()).singleElement().satisfies(o -> {
+            assertThat(o.id()).isEqualTo(2);
+            assertThat(o.unitPrice()).isEqualTo(Money.ofMinor(7));
+        });
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: lowering a bid keeps the surplus escrow inside the order instead of giving it back.
+    @Test
+    void loweringABidRefundsTheSurplusToTheMailbox() throws SQLException {
+        settlement.place(tx, order(A, BUY, 5, 10), null);
+
+        edit(1, 10, 3, 0, 0, 0);
+
+        assertThat(rows("SELECT unit_price, escrow_money, status FROM orders WHERE id = 2")).containsExactly("3|30|ACTIVE");
+        assertThat(rows("SELECT kind, amount, reason FROM mailbox")).containsExactly("MONEY|20|EDIT_REFUND");
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    @Test
+    void addingToASellOrderUsesTheItemsTakenForIt() throws SQLException {
+        settlement.place(tx, order(A, SELL, 9, 5), null);
+
+        edit(1, 5, 9, 3, 0, 3);
+
+        assertThat(rows("SELECT id, qty_total, status FROM orders ORDER BY id")).containsExactly("1|5|CANCELLED", "2|8|ACTIVE");
+        assertThat(engine.book(diamond).asks()).singleElement().satisfies(o -> assertThat(o.remaining()).isEqualTo(8));
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: an edited order that now crosses the book rests instead of trading.
+    @Test
+    void anEditThatCrossesTradesRightAway() throws SQLException {
+        settlement.place(tx, order(B, SELL, 6, 4), null);
+        settlement.place(tx, order(A, BUY, 5, 10), null);
+
+        edit(2, 10, 6, 0, 10, 0);
+
+        assertThat(rows("SELECT qty, unit_price FROM trades")).containsExactly("4|6");
+        assertThat(engine.book(diamond).bids()).singleElement().satisfies(o -> assertThat(o.remaining()).isEqualTo(6));
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    // Break: the order filled partly while the extra money was being taken, and the edit is applied to stale numbers.
+    @Test
+    void ifTheOrderChangedMeanwhileNothingIsReplacedAndTheFundingComesBack() throws SQLException {
+        settlement.place(tx, order(A, BUY, 5, 10), null);
+        settlement.place(tx, order(B, SELL, 5, 2), null); // fills 2 of A's 10 before the edit lands
+
+        SettlementService.EditResult r = edit(1, 10, 7, 0, 20, 0);
+
+        assertThat(r.applied()).isFalse();
+        assertThat(rows("SELECT unit_price, qty_filled, escrow_money, status FROM orders WHERE id = 1")).containsExactly("5|2|40|ACTIVE");
+        assertThat(rows("SELECT kind, amount, reason FROM mailbox WHERE reason = 'EDIT_REFUND'")).containsExactly("MONEY|20|EDIT_REFUND");
+        assertThat(LedgerInvariants.check(db.writer())).isEmpty();
+    }
+
+    @Test
+    void editingAnOrderThatIsGoneRefundsItemsTaken() throws SQLException {
+        settlement.place(tx, order(A, SELL, 9, 5), null);
+        settlement.cancel(tx, 1, OrderStatus.CANCELLED);
+
+        SettlementService.EditResult r = edit(1, 5, 9, 2, 0, 2);
+
+        assertThat(r.applied()).isFalse();
+        assertThat(rows("SELECT kind, qty, reason FROM mailbox ORDER BY id")).containsExactly("ITEM|5|CANCEL_REFUND", "ITEM|2|EDIT_REFUND");
+    }
+
+    @Test
+    void afterARestartOnlyTheReplacementIsLoaded() {
+        settlement.place(tx, order(A, BUY, 5, 10), null);
+        edit(1, 10, 7, 0, 20, 0);
+
+        MatchingEngine fresh = new MatchingEngine();
+        new SettlementService(fresh, ledger, CLOCK).loadAndReplay(tx);
+
+        assertThat(fresh.book(diamond).bids()).singleElement().satisfies(o -> assertThat(o.id()).isEqualTo(2));
+    }
+
     // Break: a stale engine view over-fills a resting order, or a half-written trade survives a failure.
     @Test
     void ifTheDatabaseDisagreesWithTheEngineNothingIsWrittenAndTheEngineIsUnchanged() throws SQLException {

@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
-/** Active orders with fill ratio. Shift-click cancels (a plain click only explains how), so a stray click never cancels. */
+/** Active orders with fill ratio. A click opens the edit screen; shift-click cancels, so a stray click never cancels. */
 public final class MyOrdersMenu extends PagedMenu<OrderRow> {
 
     public MyOrdersMenu(Menus menus, Player player, int page) {
@@ -46,7 +46,7 @@ public final class MyOrdersMenu extends PagedMenu<OrderRow> {
     @Override
     protected void pick(OrderRow o, ClickType click) {
         if (!click.isShiftClick()) {
-            msg.send(player, "menu.orders.shift-to-cancel");
+            menus.openEdit(player, o);
             return;
         }
         actions.cancel(player, o.id()).thenAccept(ok -> {

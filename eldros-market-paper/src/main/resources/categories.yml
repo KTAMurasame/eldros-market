@@ -1,0 +1,81 @@
+# Categories of the market list and the catalog. Applies after /marketadmin reload.
+# items: item ids; * means "any characters" (e.g. "*_ore" = every ore). Ids without a namespace mean minecraft:.
+# The FIRST category (top to bottom) that matches an item gets it; items nothing matches are under "Other".
+# name: per language file (en_US is the fallback); MiniMessage colours allowed. icon: any item id.
+# The ids "all" and "other" are reserved.
+categories:
+  minerals:
+    icon: DIAMOND
+    name: {en_US: "Ores & minerals", tr_TR: "Maden ve mineraller"}
+    items: ["*_ore", "raw_*", "*_ingot", "*_nugget", "diamond", "emerald", "coal", "charcoal", "lapis_lazuli", "redstone",
+            "quartz", "amethyst_shard", "netherite_scrap", "ancient_debris", "flint", "glowstone_dust",
+            "coal_block", "iron_block", "gold_block", "diamond_block", "emerald_block", "lapis_block", "redstone_block",
+            "netherite_block", "copper_block", "amethyst_block", "quartz_block"]
+  farming:
+    icon: WHEAT
+    name: {en_US: "Farming & food", tr_TR: "Tarım ve yiyecek"}
+    items: ["*_seeds", "wheat", "carrot", "golden_carrot", "potato", "baked_potato", "poisonous_potato", "beetroot",
+            "*apple", "bread", "cooked_*", "*_stew", "*_soup", "cake", "cookie", "pumpkin_pie", "melon_slice", "glistering_melon_slice",
+            "sweet_berries", "glow_berries", "honey_bottle", "honeycomb", "sugar_cane", "sugar", "cocoa_beans", "pumpkin",
+            "carved_pumpkin", "melon", "hay_block", "egg", "milk_bucket", "beef", "porkchop", "chicken", "mutton", "rabbit",
+            "cod", "salmon", "tropical_fish", "pufferfish", "*_sapling", "*_propagule", "kelp", "dried_kelp*", "bamboo",
+            "cactus", "nether_wart", "chorus_fruit", "*_mushroom", "brown_mushroom_block", "red_mushroom_block", "torchflower*",
+            "pitcher_*"]
+  mob-drops:
+    icon: BONE
+    name: {en_US: "Mob drops", tr_TR: "Yaratık ganimetleri"}
+    items: ["rotten_flesh", "bone", "bone_meal", "bone_block", "string", "spider_eye", "fermented_spider_eye", "gunpowder",
+            "ender_pearl", "ender_eye", "blaze_rod", "blaze_powder", "breeze_rod", "wind_charge", "slime_ball", "slime_block",
+            "magma_cream", "ghast_tear", "phantom_membrane", "leather", "feather", "rabbit_hide", "rabbit_foot", "ink_sac",
+            "glow_ink_sac", "prismarine_shard", "prismarine_crystals", "shulker_shell", "nether_star", "dragon_breath",
+            "*_scute", "experience_bottle", "heart_of_the_sea", "nautilus_shell", "echo_shard", "*_spawn_egg"]
+  tools:
+    icon: IRON_PICKAXE
+    name: {en_US: "Tools", tr_TR: "Aletler"}
+    items: ["*_pickaxe", "*_axe", "*_shovel", "*_hoe", "shears", "fishing_rod", "carrot_on_a_stick", "warped_fungus_on_a_stick",
+            "flint_and_steel", "brush", "compass", "recovery_compass", "clock", "spyglass", "lead", "name_tag", "saddle",
+            "bucket", "*_bucket", "map", "*_boat", "*_chest_boat", "*_raft", "elytra", "firework_rocket"]
+  combat:
+    icon: IRON_SWORD
+    name: {en_US: "Combat", tr_TR: "Savaş"}
+    items: ["*_sword", "*_helmet", "*_chestplate", "*_leggings", "*_boots", "bow", "crossbow", "arrow", "spectral_arrow",
+            "trident", "mace", "shield", "totem_of_undying", "*_horse_armor", "wolf_armor", "*_smithing_template"]
+  redstone:
+    icon: REDSTONE
+    name: {en_US: "Redstone", tr_TR: "Kızıltaş"}
+    items: ["redstone_*", "repeater", "comparator", "piston", "sticky_piston", "observer", "hopper", "dropper", "dispenser",
+            "crafter", "*rail", "minecart", "*_minecart", "lever", "*_button", "*_pressure_plate", "tripwire_hook",
+            "daylight_detector", "target", "note_block", "jukebox", "tnt", "lightning_rod", "*sculk_sensor", "*_door",
+            "*_trapdoor", "*_fence_gate", "trapped_chest", "honey_block"]
+  decoration:
+    icon: POPPY
+    name: {en_US: "Decoration & utility", tr_TR: "Dekorasyon ve işlevsel"}
+    items: ["*_bed", "*_banner", "*_carpet", "*candle", "flower_pot", "decorated_pot", "painting", "*item_frame", "armor_stand",
+            "*lantern", "*torch", "campfire", "soul_campfire", "*_dye", "dandelion", "poppy", "blue_orchid", "allium",
+            "azure_bluet", "*_tulip", "oxeye_daisy", "cornflower", "lily_of_the_valley", "wither_rose", "sunflower", "lilac",
+            "rose_bush", "peony", "*_coral*", "*_sign", "*_hanging_sign", "chest", "barrel", "*shulker_box", "bookshelf",
+            "chiseled_bookshelf", "lectern", "*_head", "*_skull", "end_rod", "chain", "bell", "*_pottery_sherd", "*_banner_pattern",
+            "music_disc_*", "crafting_table", "*furnace", "smoker", "*anvil", "ladder", "iron_bars", "scaffolding", "loom",
+            "cartography_table", "fletching_table", "smithing_table", "stonecutter", "grindstone", "enchanting_table",
+            "brewing_stand", "cauldron", "composter", "beacon", "conduit", "respawn_anchor", "lodestone", "ender_chest",
+            "beehive", "bee_nest", "glass_bottle", "book", "paper", "writable_book", "*_bundle", "vault", "trial_spawner",
+            "trial_key", "ominous_trial_key", "spawner", "creaking_heart", "heavy_core"]
+  nature:
+    icon: FERN
+    name: {en_US: "Nature", tr_TR: "Doğa"}
+    items: ["short_grass", "tall_grass", "fern", "large_fern", "*_roots", "azalea", "flowering_azalea", "dead_bush", "*_bush",
+            "seagrass", "sea_pickle", "*eyeblossom", "spore_blossom", "*_fungus", "nether_sprouts", "vine", "*vines", "pink_petals",
+            "*moss*", "*dripleaf", "chorus_plant", "chorus_flower", "glow_lichen", "cobweb", "lily_pad", "sculk*", "leaf_litter",
+            "wildflowers", "cactus_flower", "*_grass", "farmland", "dirt_path", "rooted_dirt", "turtle_egg", "sniffer_egg",
+            "frogspawn", "*_froglight", "budding_amethyst", "*_amethyst_bud", "amethyst_cluster", "pointed_dripstone"]
+  blocks:
+    icon: BRICKS
+    name: {en_US: "Building blocks", tr_TR: "Yapı blokları"}
+    items: ["*_planks", "*_log", "*_wood", "*_stem", "*_hyphae", "stone", "stone_*", "*stone", "*stone_*", "cobble*",
+            "*brick*", "*_slab", "*_stairs", "*_wall", "*_fence", "dirt", "*_dirt", "grass_block", "podzol", "mycelium", "mud",
+            "packed_mud", "sand", "red_sand", "gravel", "clay", "*glass*", "*concrete*", "*terracotta", "*_wool", "deepslate*",
+            "*deepslate", "*andesite*", "*diorite*", "*granite*", "tuff*", "*_tuff", "calcite", "netherrack", "*basalt",
+            "end_stone*", "obsidian", "crying_obsidian", "ice", "packed_ice", "blue_ice", "snow*", "*_leaves", "moss_*",
+            "prismarine*", "dark_prismarine*", "quartz_*", "*_quartz*", "purpur*", "*copper*", "dripstone_block",
+            "*_nylium", "soul_sand", "soul_soil", "magma_block", "sponge", "wet_sponge", "sea_lantern", "glowstone",
+            "shroomlight", "*_wart_block", "*_tiles", "*mosaic*", "bamboo_*", "suspicious_*", "*_block"]

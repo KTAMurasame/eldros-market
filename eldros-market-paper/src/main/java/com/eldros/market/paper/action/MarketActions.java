@@ -8,6 +8,8 @@ import com.eldros.market.core.domain.PlayerId;
 import com.eldros.market.core.engine.BookView;
 import com.eldros.market.core.engine.MatchPlan;
 import com.eldros.market.core.market.OpResult;
+import com.eldros.market.core.service.LimitPolicy;
+import com.eldros.market.core.service.LimitSettings;
 import com.eldros.market.core.service.ValidationCode;
 import com.eldros.market.core.service.ValidationResult;
 import com.eldros.market.core.storage.jdbc.JdbcJournal.MailboxRow;
@@ -56,6 +58,28 @@ public final class MarketActions {
         }
         if (rt.safeMode().isActive()) {
             msg.send(p, "general.safe-mode");
+            return false;
+        }
+        return allowedHere(p);
+    }
+
+    /**
+     * False (and tells the player) in a world or game mode where the market is turned off. Only an explicitly granted
+     * {@code eldrosmarket.bypass.restrictions} skips this, so being op alone does not.
+     */
+    public boolean allowedHere(Player p) {
+        Optional<String> why = rt.restriction(p);
+        why.ifPresent(key -> msg.send(p, key, Messages.text("mode", p.getGameMode().name().toLowerCase(Locale.ROOT))));
+        return why.isEmpty();
+    }
+
+    /** {@link #open} and trading not frozen by an admin. Cancelling and claiming only need {@link #open}. */
+    public boolean trading(Player p) {
+        if (!open(p)) {
+            return false;
+        }
+        if (rt.isFrozen()) {
+            msg.send(p, "general.frozen");
             return false;
         }
         return true;
@@ -115,16 +139,21 @@ public final class MarketActions {
     // --- messages ----------------------------------------------------------------------------------------
 
     public void validation(Player p, ValidationCode code) {
+        validation(p, code, rt.settings().limits());
+    }
+
+    /** Reports {@code code} with the limits that applied (an item's own price range, if it has one). */
+    public void validation(Player p, ValidationCode code, LimitSettings l) {
         String lang = msg.languageOf(p);
         var s = rt.settings();
         TagResolver max = switch (code) {
-            case QUANTITY_TOO_LARGE -> Messages.text("max", s.limits().maxQuantityPerOrder());
-            case PRICE_TOO_HIGH -> msg.money(lang, "max", s.limits().maxUnitPrice(), s.scale());
+            case QUANTITY_TOO_LARGE -> Messages.text("max", l.maxQuantityPerOrder());
+            case PRICE_TOO_HIGH -> msg.money(lang, "max", l.maxUnitPrice(), s.scale());
             case TOO_MANY_ORDERS -> Messages.text("max", orderLimit(p));
             default -> Messages.text("max", "");
         };
         msg.send(p, "validation." + code.name().toLowerCase(Locale.ROOT), max,
-                msg.money(lang, "min", s.limits().minUnitPrice(), s.scale()));
+                msg.money(lang, "min", l.minUnitPrice(), s.scale()));
     }
 
     public void reason(Player p, OpResult r) {
@@ -158,7 +187,7 @@ public final class MarketActions {
      * Checks filter, rate, limits; completes with true when the order was created.
      */
     public CompletableFuture<Boolean> place(Player p, OrderSide side, ItemStack item, long qty, Money price) {
-        if (!open(p) || !permitted(p, side == OrderSide.BUY ? "eldrosmarket.buy" : "eldrosmarket.sell")) {
+        if (!trading(p) || !permitted(p, side == OrderSide.BUY ? "eldrosmarket.buy" : "eldrosmarket.sell")) {
             return no();
         }
         Optional<String> refusal = rt.filter().refusal(item);
@@ -176,16 +205,25 @@ public final class MarketActions {
             int limit = orderLimit(p);
             return rt.onEngine(() -> rt.tx().inTransaction(c -> rt.ledger().countActiveOrders(c, owner)))
                     .thenComposeAsync(active -> {
-                        ValidationResult v = rt.limits().validate(price, qty, active, limit);
+                        LimitSettings itemLimits = rt.limitsFor(copy.getType());
+                        ValidationResult v = new LimitPolicy(itemLimits).validate(price, qty, active, limit);
                         if (!v.isOk()) {
-                            validation(p, v.code());
+                            validation(p, v.code(), itemLimits);
                             return no();
                         }
                         return rt.resolveTemplate(copy).thenComposeAsync(template -> {
                             Long expires = rt.settings().expiryEnabled() ? rt.now() + rt.settings().expiryDays() * 86_400_000L : null;
-                            NewOrder spec = new NewOrder(owner, side, template, price, qty, expires);
+                            Money fee = side == OrderSide.BUY ? buyFee(p, price.times(qty)) : Money.ZERO;
+                            NewOrder spec = new NewOrder(owner, side, template, price, qty, expires)
+                                    .withFees(side == OrderSide.SELL ? taxRate(p) : 0, fee);
                             CompletableFuture<OpResult> op = side == OrderSide.BUY ? rt.ops().buy(spec) : rt.ops().sell(spec);
-                            return op.thenApplyAsync(r -> placed(p, side, template, qty, price, r), rt.main());
+                            return op.thenApplyAsync(r -> {
+                                boolean ok = placed(p, side, template, qty, price, r);
+                                if (ok && fee.minor() > 0 && p.isOnline()) {
+                                    msg.send(p, "order.fee-charged", msg.money(msg.languageOf(p), "fee", fee, rt.settings().scale()));
+                                }
+                                return ok;
+                            }, rt.main());
                         }, rt.main());
                     }, rt.main());
         });
@@ -210,6 +248,157 @@ public final class MarketActions {
             msg.send(p, "order.filled-now", Messages.text("filled", filled), Messages.text("qty", qty));
         }
         return true;
+    }
+
+    // --- fees ------------------------------------------------------------------------------------------
+
+    /** Sales tax rate of {@code p} in basis points: the lowest tier they have permission for, else the default. */
+    public int taxRate(Player p) {
+        var fees = rt.settings().fees();
+        int rate = fees.salesTaxBps();
+        for (var tier : fees.taxTiers().entrySet()) {
+            String perm = "eldrosmarket.tax." + tier.getKey();
+            // Only explicitly granted tiers count: undeclared permissions default to op, and being op must not
+            // silently lower the tax.
+            if (p.isPermissionSet(perm) && p.hasPermission(perm)) {
+                rate = Math.min(rate, tier.getValue());
+            }
+        }
+        return rate;
+    }
+
+    /** Creation fee for a buy order worth {@code value}; zero when fees are off or the player is exempt. */
+    public Money buyFee(Player p, Money value) {
+        var fees = rt.settings().fees();
+        if (!fees.buyFeeEnabled() || p.hasPermission("eldrosmarket.fee.exempt")) {
+            return Money.ZERO;
+        }
+        return com.eldros.market.core.service.Fees.creationFee(value, fees.buyFeeFlat(), fees.buyFeeBps(), fees.buyFeeMax());
+    }
+
+    // --- instant buy / sell ----------------------------------------------------------------------------
+
+    /**
+     * What an instant order for up to {@code qty} would do right now: walks the opposite side as far as the
+     * configured price limits allow. The quote's {@code worstPrice} becomes the order's limit when it is executed.
+     */
+    public CompletableFuture<BookView.Preview> instantQuote(Player p, OrderSide side, TemplateId template, long qty) {
+        var limits = rt.limitsFor(template);
+        Money extreme = side == OrderSide.SELL ? limits.minUnitPrice() : limits.maxUnitPrice();
+        return preview(p, side, template, extreme, Math.max(1, Math.min(qty, limits.maxQuantityPerOrder())));
+    }
+
+    /**
+     * Trades {@code qty} right away at prices no worse than {@code limit} (the quoted worst price). Nothing rests in
+     * the book: what cannot trade any more (the book moved) goes back to the mailbox. Completes with true when the
+     * operation ran, also if it filled only partly.
+     */
+    public CompletableFuture<Boolean> instant(Player p, OrderSide side, TemplateId template, long qty, Money limit) {
+        if (!trading(p) || !permitted(p, side == OrderSide.BUY ? "eldrosmarket.buy" : "eldrosmarket.sell")) {
+            return no();
+        }
+        if (!rt.templates().has(template)) {
+            msg.send(p, "instant.nothing");
+            return no();
+        }
+        Optional<String> refusal = rt.filter().refusal(rt.templates().stack(template, 1));
+        if (refusal.isPresent()) {
+            msg.send(p, refusal.get());
+            return no();
+        }
+        return locked(p, () -> {
+            if (side == OrderSide.SELL && !rt.tryItemOperation()) {
+                msg.send(p, "general.busy");
+                return no();
+            }
+            LimitSettings itemLimits = rt.limitsFor(template);
+            ValidationResult v = new LimitPolicy(itemLimits).validate(limit, qty, 0, Integer.MAX_VALUE);
+            if (!v.isOk()) {
+                validation(p, v.code(), itemLimits);
+                return no();
+            }
+            int taxBps = side == OrderSide.SELL ? taxRate(p) : 0;
+            NewOrder spec = NewOrder.immediate(new PlayerId(p.getUniqueId()), side, template, limit, qty).withFees(taxBps, Money.ZERO);
+            CompletableFuture<OpResult> op = side == OrderSide.BUY ? rt.ops().buy(spec) : rt.ops().sell(spec);
+            return op.thenApplyAsync(r -> instantDone(p, side, template, qty, r, taxBps), rt.main());
+        });
+    }
+
+    private boolean instantDone(Player p, OrderSide side, TemplateId template, long qty, OpResult r, int taxBps) {
+        if (!p.isOnline()) {
+            return r.status() == OpResult.Status.DONE;
+        }
+        if (r.status() != OpResult.Status.DONE) {
+            reason(p, r);
+            return false;
+        }
+        String lang = msg.languageOf(p);
+        var scale = rt.settings().scale();
+        long filled = r.plan() == null ? 0 : r.plan().fills().stream().mapToLong(f -> f.quantity()).sum();
+        Money total = Money.ZERO;
+        Money tax = Money.ZERO;
+        if (r.plan() != null) {
+            for (var f : r.plan().fills()) {
+                total = total.plus(f.total());
+                tax = tax.plus(com.eldros.market.core.service.Fees.tax(f.total(), taxBps)); // same per-fill rounding as settlement
+            }
+        }
+        TagResolver item = Messages.component("item", rt.templates().name(template));
+        if (filled == 0) {
+            msg.send(p, "instant.none-filled", item);
+        } else {
+            msg.send(p, side == OrderSide.SELL ? "instant.sold" : "instant.bought", Messages.text("qty", filled), item,
+                    msg.money(lang, "total", total, scale));
+            if (tax.minor() > 0) {
+                msg.send(p, "instant.tax-kept", msg.money(lang, "tax", tax, scale), msg.money(lang, "net", total.minus(tax), scale));
+            }
+        }
+        if (filled < qty) {
+            msg.send(p, "instant.returned", Messages.text("qty", qty - filled), item);
+        }
+        return true;
+    }
+
+    // --- edit ------------------------------------------------------------------------------------------
+
+    /**
+     * Re-prices order {@code id} and/or adds {@code addQty} items to it. A higher bid is charged the difference, added
+     * sell items leave the inventory, a lower bid's surplus goes to the mailbox. The order moves to the back of the
+     * queue at its (new) price.
+     */
+    public CompletableFuture<Boolean> edit(Player p, long id, TemplateId template, OrderSide side, Money newPrice, long newTotal, long addQty) {
+        if (!trading(p) || !permitted(p, side == OrderSide.BUY ? "eldrosmarket.buy" : "eldrosmarket.sell")) {
+            return no();
+        }
+        return locked(p, () -> {
+            if (side == OrderSide.SELL && addQty > 0 && !rt.tryItemOperation()) {
+                msg.send(p, "general.busy");
+                return no();
+            }
+            LimitSettings itemLimits = rt.limitsFor(template);
+            ValidationResult v = new LimitPolicy(itemLimits).validate(newPrice, newTotal, 0, Integer.MAX_VALUE);
+            if (!v.isOk()) {
+                validation(p, v.code(), itemLimits);
+                return no();
+            }
+            return rt.ops().edit(new PlayerId(p.getUniqueId()), id, newPrice, addQty).thenApplyAsync(r -> {
+                if (!p.isOnline()) {
+                    return r.status() == OpResult.Status.DONE;
+                }
+                if (r.status() != OpResult.Status.DONE) {
+                    reason(p, r);
+                    return false;
+                }
+                String lang = msg.languageOf(p);
+                msg.send(p, "order.edited", Messages.component("item", rt.templates().name(template)),
+                        Messages.text("qty", r.quantity()), msg.money(lang, "price", newPrice, rt.settings().scale()));
+                long filled = r.plan() == null ? 0 : r.plan().fills().stream().mapToLong(f -> f.quantity()).sum();
+                if (filled > 0) {
+                    msg.send(p, "order.filled-now", Messages.text("filled", filled), Messages.text("qty", r.quantity()));
+                }
+                return true;
+            }, rt.main());
+        });
     }
 
     public CompletableFuture<Boolean> cancel(Player p, long id) {

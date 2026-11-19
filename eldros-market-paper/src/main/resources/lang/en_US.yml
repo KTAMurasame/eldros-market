@@ -14,6 +14,11 @@ general:
   player-only: "<red>Only players can do that.</red>"
   no-permission: "<red>You do not have permission to do that.</red>"
   safe-mode: "<red>The market is paused for maintenance. Your money and items are safe. Please try again later.</red>"
+  disabled-world: "<red>The market is not available in this world.</red>"
+  disabled-gamemode: "<red>The market is not available in <mode> mode.</red>"
+  frozen: "<red>Trading is frozen for maintenance. You can still cancel orders and claim your mailbox.</red>"
+  frozen-broadcast: "<yellow>Market trading is frozen for maintenance. Cancelling orders and the mailbox still work.</yellow>"
+  unfrozen-broadcast: "<green>Market trading is open again.</green>"
   error: "<red>Something went wrong. Nothing was charged. Please tell an admin if it happens again.</red>"
   unknown-subcommand: "<red>Unknown command. Use <yellow>/market help</yellow>.</red>"
   loading: "<gray>Loading…</gray>"
@@ -23,12 +28,15 @@ help:
   - "<gold>Eldros Market</gold>"
   - "<yellow>/market</yellow> <gray>— open the market</gray>"
   - "<yellow>/market sell <qty> <price></yellow> <gray>— sell the item in your hand</gray>"
+  - "<yellow>/market sell</yellow> <gray>— sell the stack in your hand right now to the best buyers</gray>"
+  - "<yellow>/market sell all</yellow> <gray>— sell everything that has buyers right now</gray>"
   - "<yellow>/market buy <qty> <price> [item]</yellow> <gray>— buy the item in your hand, or a named item</gray>"
   - "<yellow>/market orders</yellow> <gray>— your active orders</gray>"
   - "<yellow>/market cancel <id></yellow> <gray>— cancel one of your orders</gray>"
   - "<yellow>/market mailbox</yellow> <gray>— items and money waiting for you</gray>"
   - "<yellow>/market claim [all]</yellow> <gray>— collect from your mailbox</gray>"
   - "<yellow>/market lang <en_US|tr_TR></yellow> <gray>— change your language</gray>"
+  - "<yellow>/market alerts</yellow> <gray>— turn sale and purchase alerts off or on</gray>"
 
 validation:
   empty: "<red>Please enter a value.</red>"
@@ -56,12 +64,15 @@ reason:
   not_available: "<red>That is no longer available.</red>"
   not_owner: "<red>That is not your order.</red>"
   safe_mode: "<red>The market is paused for maintenance. Your money and items are safe.</red>"
+  order_changed: "<yellow>The order traded or changed while you were editing it, so it was left as it is. Anything taken for the change is back in your mailbox.</yellow>"
   quarantined: "<yellow>We could not confirm the payment result. An admin will review it — nothing will be charged twice.</yellow>"
 
 order:
   created-buy: "<green>Buy order placed:</green> <yellow><qty>×</yellow> <item> at <price> each (reserved <total>)."
   created-sell: "<green>Sell order placed:</green> <yellow><qty>×</yellow> <item> at <price> each."
   filled-now: "<green><filled> of <qty> matched immediately.</green> Check <yellow>/market mailbox</yellow>."
+  edited: "<green>Order changed:</green> <yellow><qty>×</yellow> <item> at <price> each."
+  fee-charged: "<gray>A buy order fee of <yellow><fee></yellow> was charged (not refunded on cancel).</gray>"
   cancelled: "<green>Order #<id> cancelled.</green> The rest went to your mailbox."
   self-cross: "<gray>Note: your own orders never match each other.</gray>"
 
@@ -77,15 +88,18 @@ mailbox:
   empty: "<gray>Your mailbox is empty.</gray>"
   entry-money: "<gray>#<id></gray> <amount> <gray>(<reason>)</gray>"
   entry-item: "<gray>#<id></gray> <yellow><qty>×</yellow> <item> <gray>(<reason>)</gray>"
-  waiting: "<yellow>You have <count> item(s) waiting in your mailbox.</yellow> <gray>/market mailbox</gray>"
+  waiting: "<yellow>Mailbox entries waiting: <count>.</yellow> <gray>/market mailbox</gray>"
+  auto-collected: "<green>+<amount></green> <gray>from the market was added to your balance.</gray>"
   reasons:
-    TRADE_ITEM: "bought"
-    TRADE_MONEY: "sold"
+    TRADE_ITEM: "from a purchase"
+    TRADE_MONEY: "earnings from a sale"
     PRICE_IMPROVEMENT: "cheaper than your bid"
     CANCEL_REFUND: "cancelled order"
     EXPIRE_REFUND: "expired order"
     RECOVERY_REFUND: "recovered after a restart"
     RESOLVED_REFUND: "resolved by an admin"
+    UNFILLED_REFUND: "not traded right away"
+    EDIT_REFUND: "order changed"
 
 claim:
   money: "<green>Collected <amount>.</green>"
@@ -100,6 +114,9 @@ lang:
 notify:
   trade:
     sold: "<green>Sold <yellow><qty>×</yellow> <item> for <price> each.</green> <gray>/market mailbox</gray>"
+    sold-taxed: "<green>Sold <yellow><qty>×</yellow> <item> for <price> each</green> <gray>(sales tax <tax>).</gray> <gray>/market mailbox</gray>"
+    sold-auto: "<green>Sold <yellow><qty>×</yellow> <item> for <price> each.</green>"
+    sold-taxed-auto: "<green>Sold <yellow><qty>×</yellow> <item> for <price> each</green> <gray>(sales tax <tax>).</gray>"
     bought: "<green>Bought <yellow><qty>×</yellow> <item> for <price> each.</green> <gray>/market mailbox</gray>"
   order:
     cancelled: "<gray>Your order for <item> was cancelled; <qty> returned to your mailbox.</gray>"
@@ -108,6 +125,24 @@ notify:
     refund: "<yellow>After a server restart, <amount> was returned to your mailbox.</yellow>"
     items: "<yellow>After a server restart, <qty>× <item> were returned to your mailbox.</yellow>"
     review: "<yellow>An unfinished market action is being reviewed by an admin. Nothing will be charged twice.</yellow>"
+  away:
+    header: "<gold>While you were away:</gold>"
+    more: "<gray>…and <count> more. Everything is in <yellow>/market mailbox</yellow>.</gray>"
+
+alerts:
+  muted: "<gray>Market alerts are <red>off</red>. You will see a summary when you join. <yellow>/market alerts</yellow> turns them back on.</gray>"
+  unmuted: "<gray>Market alerts are <green>on</green>.</gray>"
+
+instant:
+  sold: "<green>Sold <yellow><qty>×</yellow> <item> for <total> in total.</green> <gray>/market mailbox</gray>"
+  bought: "<green>Bought <yellow><qty>×</yellow> <item> for <total> in total.</green> <gray>/market mailbox</gray>"
+  tax-kept: "<gray>Sales tax <yellow><tax></yellow> was kept; <net> goes to your mailbox.</gray>"
+  returned: "<yellow><qty> could not trade at your price any more (the book moved); they are back in your mailbox.</yellow>"
+  none-filled: "<yellow>Nothing traded: the orders for <item> are gone. Everything is back in your mailbox.</yellow>"
+  none-held: "<yellow>You have no <item> to sell.</yellow>"
+  empty-hand: "<yellow>Hold the item you want to sell, or use <white>/market sell all</white>.</yellow>"
+  no-buyers: "<yellow>Nobody is buying <item> right now. Place a sell order with <white>/market sell <qty> <price></white>.</yellow>"
+  nothing: "<yellow>That item is not traded on the market.</yellow>"
 
 admin:
   reloaded: "<green>Configuration and languages reloaded.</green>"
@@ -119,20 +154,34 @@ admin:
   safemode-off: "<green>Safe mode OFF: market reloaded and recovered.</green>"
   safemode-still: "<red>The database still refuses writes; safe mode stays on.</red>"
   safemode-status: "<gray>Safe mode: <state></gray>"
+  freeze-on: "<yellow>Trading frozen. New orders, instant trades and edits are refused until <white>/marketadmin freeze off</white>; it stays on after a restart.</yellow>"
+  freeze-off: "<green>Trading is open again.</green>"
+  freeze-status-on: "<gray>Trading freeze: <yellow>ON</yellow> (<white>/marketadmin freeze off</white>)</gray>"
+  freeze-status-off: "<gray>Trading freeze: OFF (<white>/marketadmin freeze on</white>)</gray>"
   recovery-header: "<gold>Quarantined operations</gold>"
   recovery-none: "<green>No quarantined operations.</green>"
   recovery-entry: "<gray><op></gray> <yellow><type></yellow> <player> <amount> <gray>(<reason>)</gray>"
   resolved: "<green>Resolved <op> as <decision>.</green>"
   resolve-failed: "<red>Could not resolve: <error></red>"
   orphan-markers: "<red>Player <player> carries <count> marker(s) with no journal entry: <list>. Check backups before removing.</red>"
-  usage: "<gray>/marketadmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [qty]</gray>"
+  usage: "<gray>/marketadmin reload | verify | safemode [on|off] | freeze [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [qty]</gray>"
 
 # --- menus (layouts are in menus/*.yml) ----------------------------------------------------------------
 menu:
   prompt:
     search: "<yellow>Type what you are looking for in chat, e.g. <white>diamond sword</white> or <white>oak log</white></yellow> <gray>(or <white>cancel</white>).</gray>"
     quantity: "<yellow>Type the quantity in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
-    price: "<yellow>Type the unit price in chat, e.g. 12.50</yellow> <gray>(or <white>cancel</white>).</gray>"
+    price: "<yellow>Type the unit price in chat, e.g. 12.50 or 2.5k</yellow> <gray>(or <white>cancel</white>).</gray>"
+    instant-quantity: "<yellow>How many do you want to buy right now? Type a number in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
+    add-quantity: "<yellow>How many items do you want to add to the order? Type a number in chat</yellow> <gray>(or <white>cancel</white>).</gray>"
+  input:
+    search: "Search"
+    quantity: "Quantity"
+    price: "Price per item"
+    instant-quantity: "How many to buy now"
+    add-quantity: "Items to add"
+    hint: ["<gray>Edit the text above,</gray>", "<gray>then click the paper on the right.</gray>", "<gray>Esc: cancel</gray>"]
+    confirm: "<green>Click to confirm</green>"
   common:
     none: "<gray>none</gray>"
     back: {name: "<yellow>Back</yellow>"}
@@ -144,6 +193,12 @@ menu:
     empty: {name: "<gray>Nothing here yet.</gray>"}
     search: {name: "<yellow>Search</yellow>", lore: ["<gray>Current: <white><search></white></gray>", "<gray>Click and type in chat.</gray>"]}
     clear-search: {name: "<yellow>Clear search</yellow>"}
+    category: {name: "<yellow>Category: <white><current></white></yellow>"}
+    category-all: "All items"
+    category-other: "Other"
+    option: "<dark_gray>  <name></dark_gray>"
+    option-selected: "<yellow>▶ <name></yellow>"
+    cycle-hint: ["<gray>Left click: next · Right click: previous</gray>"]
   main:
     title: "<dark_gray>Eldros Market</dark_gray>"
     browse: {name: "<gold>Browse the market</gold>", lore: ["<gray>Items with open buy and sell orders.</gray>"]}
@@ -157,11 +212,18 @@ menu:
   browse:
     title: "<dark_gray>Market <search></dark_gray>"
     catalog: {name: "<gold>New order</gold>", lore: ["<gray>Pick any item from the catalog.</gray>"]}
+    sort: {name: "<yellow>Sort: <white><current></white></yellow>"}
+    sort-active: "Most orders"
+    sort-name: "Name (A–Z)"
+    sort-demand: "Most wanted"
+    sort-supply: "Most offered"
+    sort-cheapest: "Cheapest to buy"
+    sort-best-paying: "Best paying"
     empty: {name: "<gray>No open orders yet.</gray>", lore: ["<gray>Be the first: <yellow>New order</yellow>.</gray>"]}
     entry:
-      - "<gray>Lowest sell: <best-ask> <dark_gray>(<ask-qty> items)</dark_gray></gray>"
-      - "<gray>Highest buy: <best-bid> <dark_gray>(<bid-qty> items)</dark_gray></gray>"
-      - "<dark_gray><orders> orders</dark_gray>"
+      - "<gray>Lowest sell: <best-ask> <dark_gray>· <ask-qty> on sale</dark_gray></gray>"
+      - "<gray>Highest buy: <best-bid> <dark_gray>· <bid-qty> wanted</dark_gray></gray>"
+      - "<dark_gray>Open orders: <orders></dark_gray>"
       - "<yellow>Click to open the order book.</yellow>"
   catalog:
     title: "<dark_gray>Catalog <search></dark_gray>"
@@ -176,15 +238,44 @@ menu:
         - "<gray>Highest buy: <best-bid></gray>"
     ask:
       name: "<red>Sell offer: <price></red>"
-      lore: ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to buy at this price.</yellow>"]
+      lore: ["<gray>Amount: <qty> · Orders: <orders></gray>", "<yellow>Click to buy at this price.</yellow>"]
     bid:
       name: "<green>Buy offer: <price></green>"
-      lore: ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to sell at this price.</yellow>"]
+      lore: ["<gray>Amount: <qty> · Orders: <orders></gray>", "<yellow>Click to sell at this price.</yellow>"]
     own:
       lore: ["<aqua><own> of these are yours (never matched with your own orders).</aqua>"]
     buy: {name: "<green>Place a buy order</green>", lore: ["<gray>Money is reserved until it fills or you cancel.</gray>"]}
     sell: {name: "<gold>Place a sell order</gold>", lore: ["<gray>Items are taken from your inventory until sold or cancelled.</gray>"]}
     empty: {name: "<gray>No orders for this item yet.</gray>", lore: ["<gray>Place the first one below.</gray>"]}
+    buy-now: {name: "<green>Buy now</green>", lore: ["<gray>From the cheapest sellers, right away.</gray>", "<gray>Lowest sell: <best-ask></gray>"]}
+    sell-now: {name: "<gold>Sell now</gold>", lore: ["<gray>To the best buyers, right away.</gray>", "<gray>Highest buy: <best-bid></gray>", "<gray>You hold: <yellow><held></yellow></gray>"]}
+  instant:
+    title: "<dark_gray>Trade now: </dark_gray><item>"
+    summary:
+      lore-sell:
+        - "<gray>Sell <yellow><qty>×</yellow> to the best buy orders now.</gray>"
+        - "<gray>Buyers pay <gold><total></gold> in total.</gray>"
+        - "<dark_gray>Never below <worst> each, even if the book moves.</dark_gray>"
+      lore-buy:
+        - "<gray>Buy <yellow><qty>×</yellow> from the cheapest sell orders now.</gray>"
+        - "<gray>You pay <gold><total></gold> in total.</gray>"
+        - "<dark_gray>Never above <worst> each; any difference comes back to your mailbox.</dark_gray>"
+      partial: ["<yellow>Only <qty> of <wanted> can trade right now.</yellow>"]
+      own-skipped: ["<aqua>Your own orders are skipped.</aqua>"]
+      tax: ["<gray>Sales tax <rate>% is kept (about <tax>).</gray>"]
+      no-buyers: ["<yellow>Nobody is buying this right now.</yellow>"]
+      no-sellers: ["<yellow>Nobody is selling this right now.</yellow>"]
+    confirm: {name: "<green>Confirm</green>", lore: ["<gray><qty>× for <total></gray>"]}
+    cancel: {name: "<red>Back</red>"}
+  sell-all:
+    title: "<dark_gray>Sell everything now</dark_gray>"
+    entry:
+      lore: ["<gray>Sell <yellow><qty>×</yellow> for <gold><total></gold></gray>", "<dark_gray>Never below <worst> each</dark_gray>"]
+      partial: ["<yellow>Buyers want only <qty> of your <held>.</yellow>"]
+    summary: {name: "<gold><total> in total</gold>", lore: ["<gray><qty> items of <kinds> kinds</gray>"]}
+    confirm: {name: "<green>Sell all of these</green>", lore: ["<gray>For <total> in total</gray>"]}
+    cancel: {name: "<red>Cancel</red>"}
+    empty: {name: "<gray>Nothing in your inventory has buyers right now.</gray>"}
   create:
     title: "<dark_gray>New order: </dark_gray><item>"
     item:
@@ -224,6 +315,8 @@ menu:
         - "<gray>The items leave your inventory now.</gray>"
       fill: ["<green><fill> trade right away for <cost>.</green>"]
       own-cross: ["<aqua>Your own opposite order is in range and will be skipped.</aqua>"]
+      fee: ["<gold>Fee: <fee></gold> <gray>(charged now, not refunded on cancel)</gray>"]
+      tax: ["<gray>Sales tax <rate>% is kept from each sale.</gray>"]
     confirm: {name: "<green>Place order</green>", lore: ["<gray><side> <qty>× at <price></gray>"]}
     cancel: {name: "<red>Back</red>"}
   orders:
@@ -235,7 +328,32 @@ menu:
       - "<gray>Left: <yellow><remaining></yellow>/<qty> <dark_gray>(<percent>% filled)</dark_gray></gray>"
       - "<gray>Unit price: <price></gray>"
       - "<gray>Reserved: <reserved></gray>"
+      - "<yellow>Click to change the price or add items.</yellow>"
       - "<red>Shift-click to cancel.</red>"
+  edit:
+    title: "<dark_gray>Change order: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray><side></gray>"
+        - "<gray>Unit price: <old-price> → <yellow><price></yellow></gray>"
+        - "<gray>Amount left: <remaining> → <yellow><total></yellow></gray>"
+    cost:
+      pay: ["<gold>You pay <amount> more now.</gold>"]
+      refund: ["<green><amount> comes back to your mailbox.</green>"]
+      items: ["<gold><add> more items leave your inventory now.</gold>"]
+    queue: ["<dark_gray>The changed order joins the back of the queue at its price.</dark_gray>"]
+    price-minus-10: {name: "<gold>Price -10</gold>"}
+    price-minus-1: {name: "<gold>Price -1</gold>"}
+    price-plus-1: {name: "<aqua>Price +1</aqua>"}
+    price-plus-10: {name: "<aqua>Price +10</aqua>"}
+    price-input: {name: "<yellow>Unit price: <price></yellow>", lore: ["<gray>Click to type a price.</gray>"]}
+    qty-minus-10: {name: "<red>Add -10</red>"}
+    qty-minus-1: {name: "<red>Add -1</red>"}
+    qty-plus-1: {name: "<green>Add +1</green>"}
+    qty-plus-10: {name: "<green>Add +10</green>"}
+    qty-plus-64: {name: "<green>Add +64</green>"}
+    qty-input: {name: "<yellow>Adding: <add></yellow>", lore: ["<gray>Click to type how many to add.</gray>"]}
+    confirm: {name: "<green>Save changes</green>", lore: ["<gray><total>× at <price></gray>"]}
   history:
     title: "<dark_gray>History</dark_gray>"
     empty: {name: "<gray>No trades yet.</gray>"}

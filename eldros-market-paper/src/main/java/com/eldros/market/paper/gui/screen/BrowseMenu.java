@@ -2,6 +2,7 @@ package com.eldros.market.paper.gui.screen;
 
 import com.eldros.market.core.domain.Money;
 import com.eldros.market.core.engine.BookView.MarketSummary;
+import com.eldros.market.paper.gui.MarketSort;
 import com.eldros.market.paper.gui.Menus;
 import com.eldros.market.paper.gui.ItemSearch;
 import com.eldros.market.paper.gui.PagedMenu;
@@ -12,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -33,10 +35,22 @@ public final class BrowseMenu extends PagedMenu<MarketSummary> {
     @Override
     protected void onOpen() {
         ItemSearch finder = search == null ? null : ItemSearch.of(search, msg.searchAliases());
-        load(actions.markets(), list -> show(list.stream()
+        Menus.View view = view();
+        load(actions.markets(), list -> show(MarketSort.sort(list.stream()
                 .filter(s -> rt.templates().has(s.template()))
+                .filter(s -> inCategory(view.category(), rt.templates().stack(s.template(), 1).getType()))
                 .filter(s -> finder == null || matches(rt.templates().stack(s.template(), 1), finder))
-                .toList()));
+                .toList(), view.sort(), t -> rt.templates().stack(t, 1).getType().getKey().getKey())));
+    }
+
+    private Menus.View view() {
+        Menus.View v = menus.browseView(player);
+        return new Menus.View(knownCategory(v.category()), v.sort());
+    }
+
+    private void change(Menus.View next) {
+        menus.browseView(player, next);
+        menus.openBrowse(player, search, 0);
     }
 
     /** Every search word matches the item id (directly or via the language's search words) or its custom name. */
@@ -49,14 +63,19 @@ public final class BrowseMenu extends PagedMenu<MarketSummary> {
     protected void drawControls() {
         button("back", c -> menus.openMain(player));
         button("search", c -> {
-            player.closeInventory();
-            msg.send(player, "menu.prompt.search");
-            menus.prompt().ask(player, text -> menus.openBrowse(player, text, 0), () -> menus.openBrowse(player, search, page));
+            menus.input(player, "menu.prompt.search", search == null ? "" : search,
+                    text -> menus.openBrowse(player, text, 0), () -> menus.openBrowse(player, search, page));
         }, Messages.text("search", search == null ? "-" : search));
         if (search != null) {
             button("clear-search", c -> menus.openBrowse(player, null, 0));
         }
         button("catalog", c -> menus.openCatalog(player, null, 0));
+        Menus.View view = view();
+        categoryButton(view.category(), id -> change(new Menus.View(id, view.sort())));
+        List<net.kyori.adventure.text.Component> sorts = java.util.Arrays.stream(MarketSort.values())
+                .map(s -> text("sort-" + s.name().toLowerCase(Locale.ROOT).replace('_', '-'))).toList();
+        choiceButton("sort", null, sorts, view.sort().ordinal(),
+                click -> change(new Menus.View(view.category(), click.isRightClick() ? view.sort().previous() : view.sort().next())));
     }
 
     @Override

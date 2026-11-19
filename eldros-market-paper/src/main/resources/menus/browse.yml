@@ -10,6 +10,8 @@ buttons:
   clear-search: {slot: 47, material: STRUCTURE_VOID}
   previous: {slot: 48, material: SPECTRAL_ARROW}
   next: {slot: 50, material: SPECTRAL_ARROW}
+  category: {slot: 51, material: BOOKSHELF}
+  sort: {slot: 52, material: HOPPER}
   catalog: {slot: 53, material: WRITABLE_BOOK}
   loading: {slot: 22, material: CLOCK}
   empty: {slot: 22, material: CHEST}

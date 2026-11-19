@@ -114,6 +114,25 @@ public abstract class Menu {
                 text(id + ".name", resolvers), lines(id + ".lore", resolvers)), onClick));
     }
 
+    /**
+     * A button that cycles through {@code options} (left click: next, right click: previous). Its lore lists every
+     * option with the selected one marked, under the button's own {@code lore} lines.
+     */
+    protected final void choiceButton(String id, Material override, List<Component> options, int selected,
+                                      Consumer<ClickType> onClick) {
+        layout.button(id).ifPresent(b -> {
+            Component current = options.get(selected);
+            TagResolver cur = com.eldros.market.paper.i18n.Messages.component("current", current);
+            List<Component> lore = new java.util.ArrayList<>(lines(id + ".lore", cur));
+            for (int i = 0; i < options.size(); i++) {
+                TagResolver n = com.eldros.market.paper.i18n.Messages.component("name", options.get(i));
+                lore.add(text(i == selected ? "option-selected" : "option", n));
+            }
+            lore.addAll(lines("cycle-hint"));
+            set(b.slot(), menus.icons().of(override != null ? override : b.material(), text(id + ".name", cur), lore), onClick);
+        });
+    }
+
     /** Text of {@code menu.<screen>.<key>}, falling back to {@code menu.common.<key>}. */
     protected final Component text(String key, TagResolver... resolvers) {
         return msg.render(lang, resolveKey(key), resolvers);

@@ -13,6 +13,7 @@ import com.eldros.market.core.journal.JournalEntry.Type;
 import com.eldros.market.core.port.EconomyGateway.EconomyResult;
 import com.eldros.market.core.port.FaultInjector.CrashPoint;
 import com.eldros.market.core.safety.SafeMode;
+import com.eldros.market.core.settlement.SettlementService;
 import com.eldros.market.core.storage.StaleStateException;
 import com.eldros.market.core.storage.StorageException;
 import com.eldros.market.core.storage.jdbc.JdbcJournal.MailboxRow;
@@ -73,7 +74,7 @@ public final class MarketOperations {
         if (safeMode.isActive()) {
             return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.SAFE_MODE));
         }
-        Money amount = spec.unitPrice().times(spec.quantity());
+        Money amount = spec.unitPrice().times(spec.quantity()).plus(spec.creationFee()); // escrow + fee in one withdrawal
         return guard(op, CompletableFuture.supplyAsync(() -> {
                     x.tx().inTransaction(c -> {
                         x.journal().insertPending(c, JournalEntry.pending(op, Type.BUY_CREATE, spec.owner(), spec.template(),
@@ -95,7 +96,7 @@ public final class MarketOperations {
                             return p;
                         });
                         x.faults().at(CrashPoint.BUY_COMMITTED);
-                        x.engine().apply(plan);
+                        x.settlement().applyCommitted(plan, spec);
                         yield OpResult.done(op, plan, spec.quantity());
                     }
                     case FAILED -> {
@@ -149,7 +150,7 @@ public final class MarketOperations {
                         return p;
                     });
                     x.faults().at(CrashPoint.SELL_COMMITTED);
-                    x.engine().apply(plan);
+                    x.settlement().applyCommitted(plan, spec);
                     return OpResult.done(op, plan, spec.quantity());
                 }, x.engineThread())
                 .thenApplyAsync(result -> {
@@ -283,6 +284,134 @@ public final class MarketOperations {
             CancelPlan done = x.settlement().cancel(x.tx(), orderId, OrderStatus.CANCELLED);
             return OpResult.done(null, null, done.remaining());
         }, x.engineThread());
+    }
+
+    // --- edit (re-price / add quantity) ----------------------------------------------------------------
+
+    /**
+     * Replaces an active order with one at {@code newPrice} holding {@code addQuantity} more items. What the edit needs
+     * from outside the market is taken exactly like a new order of that size would take it, under the same journal
+     * types: extra escrow for a bid through BUY_CREATE (amount = the difference), extra items for a sell through
+     * SELL_CREATE (qty = the added items). So every crash window recovers like the create it mirrors, refunding only
+     * the extra and leaving the old order intact. A cheaper bid's surplus goes to the mailbox.
+     */
+    public CompletableFuture<OpResult> edit(PlayerId player, long orderId, Money newPrice, long addQuantity) {
+        String op = UUID.randomUUID().toString();
+        if (safeMode.isActive()) {
+            return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.SAFE_MODE));
+        }
+        if (addQuantity < 0) {
+            throw new IllegalArgumentException("addQuantity must be >= 0");
+        }
+        return guard(op, CompletableFuture.supplyAsync(() -> {
+            var current = x.engine().activeOrder(orderId);
+            if (current.isEmpty()) {
+                return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.NOT_AVAILABLE));
+            }
+            var order = current.get();
+            if (!order.owner().equals(player)) {
+                return CompletableFuture.completedFuture(OpResult.rejected(op, OpResult.Reason.NOT_OWNER));
+            }
+            SettlementService.EditSpec spec = new SettlementService.EditSpec(player, order.template(), orderId,
+                    order.remaining(), newPrice, addQuantity);
+            long newQuantity = order.remaining() + addQuantity;
+            if (order.side() == com.eldros.market.api.model.OrderSide.BUY) {
+                Money need = newPrice.times(newQuantity);
+                Money extra = need.compareTo(order.escrow()) > 0 ? need.minus(order.escrow()) : Money.ZERO;
+                return extra.minor() == 0 ? editNow(op, spec) : editFundedByMoney(op, spec, extra, newQuantity);
+            }
+            return addQuantity == 0 ? editNow(op, spec) : editFundedByItems(op, spec);
+        }, x.engineThread()).thenCompose(f -> f));
+    }
+
+    /** No outside effect needed (lower or equal escrow, or a sell re-price): one transaction, no journal entry. */
+    private CompletableFuture<OpResult> editNow(String op, SettlementService.EditSpec spec) {
+        SettlementService.EditResult r = durably(c -> x.settlement().editInTransaction(c, spec, Money.ZERO, 0, null));
+        x.settlement().applyEdit(r);
+        return CompletableFuture.completedFuture(r.applied()
+                ? OpResult.done(op, r.plan(), spec.expectedRemaining() + spec.addQuantity())
+                : OpResult.rejected(op, OpResult.Reason.ORDER_CHANGED));
+    }
+
+    private CompletableFuture<OpResult> editFundedByMoney(String op, SettlementService.EditSpec spec, Money extra, long newQuantity) {
+        PlayerId owner = spec.owner();
+        x.tx().inTransaction(c -> {
+            x.journal().insertPending(c, JournalEntry.pending(op, Type.BUY_CREATE, owner, spec.template(), newQuantity,
+                    spec.newPrice(), extra, null, now()));
+            return null;
+        });
+        x.faults().at(CrashPoint.BUY_PENDING_WRITTEN);
+        return CompletableFuture.supplyAsync(() -> callProvider(() -> x.economy().withdraw(owner, extra), CrashPoint.BUY_PROVIDER_DONE),
+                        x.mainThread())
+                .thenApplyAsync(outcome -> logEffect(op, outcome, CrashPoint.BUY_EFFECT_LOGGED), x.effectThread())
+                .thenApplyAsync(outcome -> switch (outcome) {
+                    case CONFIRMED -> {
+                        SettlementService.EditResult r = durably(c -> {
+                            SettlementService.EditResult e = x.settlement().editInTransaction(c, spec, extra, 0, op);
+                            x.journal().transition(c, op, State.PENDING, State.APPLIED,
+                                    e.applied() ? e.plan().incomingOrder().id() : null, null, null, null, now());
+                            x.faults().at(CrashPoint.BUY_IN_TRANSACTION);
+                            return e;
+                        });
+                        x.faults().at(CrashPoint.BUY_COMMITTED);
+                        x.settlement().applyEdit(r);
+                        yield r.applied() ? OpResult.done(op, r.plan(), newQuantity) : OpResult.rejected(op, OpResult.Reason.ORDER_CHANGED);
+                    }
+                    case FAILED -> {
+                        transition(op, State.ABORTED, null);
+                        yield OpResult.rejected(op, OpResult.Reason.INSUFFICIENT_FUNDS);
+                    }
+                    case UNKNOWN -> {
+                        transition(op, State.QUARANTINED, "VAULT_EXCEPTION");
+                        yield OpResult.quarantined(op);
+                    }
+                }, x.engineThread());
+    }
+
+    private CompletableFuture<OpResult> editFundedByItems(String op, SettlementService.EditSpec spec) {
+        PlayerId owner = spec.owner();
+        long add = spec.addQuantity();
+        x.tx().inTransaction(c -> {
+            x.journal().insertPending(c, JournalEntry.pending(op, Type.SELL_CREATE, owner, spec.template(), add,
+                    spec.newPrice(), null, null, now()));
+            return null;
+        });
+        x.faults().at(CrashPoint.SELL_PENDING_WRITTEN);
+        return CompletableFuture.supplyAsync(() -> {
+                    if (!x.inventory().remove(owner, spec.template(), add)) {
+                        return false;
+                    }
+                    x.markers().put(owner, op, add);
+                    x.faults().at(CrashPoint.SELL_REMOVED_UNSAVED);
+                    x.markers().save(owner);
+                    x.faults().at(CrashPoint.SELL_SAVED);
+                    return true;
+                }, x.mainThread())
+                .thenApplyAsync(removed -> {
+                    if (!removed) {
+                        transition(op, State.ABORTED, null);
+                        return OpResult.rejected(op, OpResult.Reason.NOT_ENOUGH_ITEMS);
+                    }
+                    SettlementService.EditResult r = durably(c -> {
+                        SettlementService.EditResult e = x.settlement().editInTransaction(c, spec, Money.ZERO, add, op);
+                        x.journal().transition(c, op, State.PENDING, State.APPLIED,
+                                e.applied() ? e.plan().incomingOrder().id() : null, null, null, null, now());
+                        x.faults().at(CrashPoint.SELL_IN_TRANSACTION);
+                        return e;
+                    });
+                    x.faults().at(CrashPoint.SELL_COMMITTED);
+                    x.settlement().applyEdit(r);
+                    return r.applied()
+                            ? OpResult.done(op, r.plan(), spec.expectedRemaining() + add)
+                            : OpResult.rejected(op, OpResult.Reason.ORDER_CHANGED);
+                }, x.engineThread())
+                .thenApplyAsync(result -> {
+                    // The items were either placed in the new order or refunded to the mailbox in the same commit.
+                    if (result.reason() != OpResult.Reason.NOT_ENOUGH_ITEMS) {
+                        x.markers().remove(owner, op);
+                    }
+                    return result;
+                }, x.mainThread());
     }
 
     // --- helpers -----------------------------------------------------------------------------------

@@ -54,6 +54,18 @@ public final class ConfirmMenu extends Menu {
         if (preview != null && preview.crossesOwn()) {
             lore.addAll(lines("summary.own-cross"));
         }
+        if (buy) {
+            var fee = actions.buyFee(player, draft.price().times(draft.quantity()));
+            if (fee.minor() > 0) {
+                lore.addAll(lines("summary.fee", money("fee", fee)));
+            }
+        } else {
+            int bps = actions.taxRate(player);
+            if (bps > 0) {
+                lore.addAll(lines("summary.tax", Messages.text("rate",
+                        java.math.BigDecimal.valueOf(bps, 2).stripTrailingZeros().toPlainString())));
+            }
+        }
         layout.button("summary").ifPresent(b -> set(b.slot(), menus.icons().ofItem(draft.item(), 1, lore), null));
         button("confirm", c -> submit(), tags);
         button("cancel", c -> menus.openCreate(player, draft), tags);

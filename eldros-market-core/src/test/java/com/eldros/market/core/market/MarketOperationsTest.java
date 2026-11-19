@@ -76,6 +76,103 @@ class MarketOperationsTest {
         assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
     }
 
+    // Break: an instant buy charges the full limit for items it never got, or leaves a resting bid behind.
+    @Test
+    void anInstantBuyPaysOnlyForWhatFilledAndEverythingElseComesBack() {
+        sell(B, 8, 2);
+        sell(B, 10, 1);
+
+        OpResult result = rig.ops.buy(NewOrder.immediate(A, OrderSide.BUY, DIAMOND, Money.ofMinor(10), 5)).join();
+
+        assertThat(result.status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(world.balances.get(A)).isEqualTo(1_000 - 50); // the whole limit is withdrawn up front ...
+        assertThat(rig.rows("SELECT reason, amount FROM mailbox WHERE owner_uuid = '" + A.value() + "' AND kind = 'MONEY' ORDER BY id"))
+                .containsExactly("PRICE_IMPROVEMENT|4", "UNFILLED_REFUND|20"); // ... and 24 of it comes straight back
+        assertThat(rig.number("SELECT COUNT(*) FROM orders WHERE status = 'ACTIVE'")).isZero();
+        assertThat(rig.rows("SELECT state FROM journal ORDER BY rowid")).containsExactly("APPLIED", "APPLIED", "APPLIED");
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
+    // Break: an instant sell takes more items than it can sell and keeps them, or rests the rest.
+    @Test
+    void anInstantSellReturnsTheUnsoldItems() {
+        buy(A, 10, 3);
+
+        OpResult result = rig.ops.sell(NewOrder.immediate(B, OrderSide.SELL, DIAMOND, Money.ofMinor(10), 5)).join();
+
+        assertThat(result.status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(world.durableItems(B, DIAMOND)).isEqualTo(64 - 5);
+        assertThat(rig.rows("SELECT kind, qty, amount, reason FROM mailbox WHERE owner_uuid = '" + B.value() + "' ORDER BY id"))
+                .containsExactly("MONEY|0|30|TRADE_MONEY", "ITEM|2|0|UNFILLED_REFUND");
+        assertThat(rig.number("SELECT COUNT(*) FROM orders WHERE status = 'ACTIVE'")).isZero();
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
+    // --- fees ----------------------------------------------------------------------------------------
+
+    // Break: the fee is added to the escrow (and later refunded), or not taken at all.
+    @Test
+    void aBuyOrderFeeIsTakenWithTheEscrowAndNotRefundedOnCancel() {
+        OpResult r = rig.ops.buy(new NewOrder(A, OrderSide.BUY, DIAMOND, Money.ofMinor(5), 10, null)
+                .withFees(0, Money.ofMinor(7))).join();
+
+        assertThat(r.status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(world.balances.get(A)).isEqualTo(1_000 - 50 - 7);
+        assertThat(rig.rows("SELECT escrow_money, creation_fee FROM orders")).containsExactly("50|7");
+        assertThat(rig.ops.cancel(A, 1).join().status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(rig.rows("SELECT amount, reason FROM mailbox")).containsExactly("50|CANCEL_REFUND");
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
+    @Test
+    void aBuyOrderThatCannotAffordTheFeeIsRefused() {
+        OpResult r = rig.ops.buy(new NewOrder(A, OrderSide.BUY, DIAMOND, Money.ofMinor(100), 10, null)
+                .withFees(0, Money.ofMinor(1))).join(); // 1,000 + 1 > 1,000
+
+        assertThat(r.reason()).isEqualTo(OpResult.Reason.INSUFFICIENT_FUNDS);
+        assertThat(world.balances.get(A)).isEqualTo(1_000);
+        assertThat(rig.number("SELECT COUNT(*) FROM orders")).isZero();
+    }
+
+    // --- edit ----------------------------------------------------------------------------------------
+
+    // Break: raising a bid does not charge the difference, or charges the full new escrow again.
+    @Test
+    void raisingABidChargesOnlyTheDifference() {
+        buy(A, 5, 10);
+
+        OpResult r = rig.ops.edit(A, 1, Money.ofMinor(7), 0).join();
+
+        assertThat(r.status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(world.balances.get(A)).isEqualTo(1_000 - 50 - 20);
+        assertThat(rig.rows("SELECT unit_price, escrow_money, status FROM orders ORDER BY id")).containsExactly("5|0|CANCELLED", "7|70|ACTIVE");
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
+    @Test
+    void addingToASellTakesOnlyTheAddedItems() {
+        sell(B, 9, 5);
+
+        OpResult r = rig.ops.edit(B, 1, Money.ofMinor(8), 4).join();
+
+        assertThat(r.status()).isEqualTo(OpResult.Status.DONE);
+        assertThat(world.durableItems(B, DIAMOND)).isEqualTo(64 - 9);
+        assertThat(rig.rows("SELECT unit_price, qty_total, status FROM orders ORDER BY id")).containsExactly("9|5|CANCELLED", "8|9|ACTIVE");
+        assertThat(world.all(B)).isEmpty();
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
+    @Test
+    void editsAreRefusedForOtherPlayersAndMissingOrdersAndWithoutMoney() {
+        buy(A, 5, 10);
+
+        assertThat(rig.ops.edit(B, 1, Money.ofMinor(6), 0).join().reason()).isEqualTo(OpResult.Reason.NOT_OWNER);
+        assertThat(rig.ops.edit(A, 99, Money.ofMinor(6), 0).join().reason()).isEqualTo(OpResult.Reason.NOT_AVAILABLE);
+        assertThat(rig.ops.edit(A, 1, Money.ofMinor(500), 0).join().reason()).isEqualTo(OpResult.Reason.INSUFFICIENT_FUNDS);
+        assertThat(rig.rows("SELECT unit_price, status FROM orders")).containsExactly("5|ACTIVE");
+        assertThat(LedgerInvariants.check(rig.db.writer())).isEmpty();
+    }
+
     @Test
     void aBuyWithoutEnoughMoneyIsRejectedAndLeavesNoOrder() {
         OpResult result = buy(A, 500, 3); // 1,500 > 1,000

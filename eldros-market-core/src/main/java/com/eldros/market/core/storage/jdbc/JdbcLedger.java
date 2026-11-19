@@ -70,8 +70,8 @@ public final class JdbcLedger {
         long id;
         try (PreparedStatement p = c.prepareStatement(
                 "INSERT INTO orders (owner_uuid, side, template_id, unit_price, qty_total, qty_filled, escrow_money, status, seq, "
-                        + "origin_op_id, created_at, updated_at, expires_at) "
-                        + "VALUES (?, ?, ?, ?, ?, 0, ?, 'ACTIVE', (SELECT COALESCE(MAX(seq), 0) + 1 FROM orders), ?, ?, ?, ?)",
+                        + "origin_op_id, created_at, updated_at, expires_at, seller_tax_bps, creation_fee) "
+                        + "VALUES (?, ?, ?, ?, ?, 0, ?, 'ACTIVE', (SELECT COALESCE(MAX(seq), 0) + 1 FROM orders), ?, ?, ?, ?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS)) {
             p.setString(1, spec.owner().value().toString());
             p.setString(2, spec.side().name());
@@ -87,6 +87,8 @@ public final class JdbcLedger {
             } else {
                 p.setLong(10, spec.expiresAt());
             }
+            p.setInt(11, spec.side() == OrderSide.SELL ? spec.sellerTaxBps() : 0);
+            p.setLong(12, spec.creationFee().minor());
             p.executeUpdate();
             id = generatedKey(p);
         }
@@ -142,10 +144,24 @@ public final class JdbcLedger {
         }
     }
 
-    public long insertTrade(Connection c, Fill fill, long now) throws SQLException {
+    /** Sales tax rate stored on order {@code orderId} (basis points; 0 for buy orders and pre-v2 orders). */
+    public int sellerTaxBps(Connection c, long orderId) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement("SELECT seller_tax_bps FROM orders WHERE id = ?")) {
+            p.setLong(1, orderId);
+            try (ResultSet rs = p.executeQuery()) {
+                if (!rs.next()) {
+                    throw new StaleStateException("order " + orderId + " not found");
+                }
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    public long insertTrade(Connection c, Fill fill, Money tax, long now) throws SQLException {
         try (PreparedStatement p = c.prepareStatement(
-                "INSERT INTO trades (template_id, buy_order_id, sell_order_id, buyer_uuid, seller_uuid, qty, unit_price, executed_at) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+                "INSERT INTO trades (template_id, buy_order_id, sell_order_id, buyer_uuid, seller_uuid, qty, unit_price, executed_at, tax) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+            p.setLong(9, tax.minor());
             p.setLong(1, fill.template().value());
             p.setLong(2, fill.buyOrderId());
             p.setLong(3, fill.sellOrderId());

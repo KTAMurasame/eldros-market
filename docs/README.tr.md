@@ -12,11 +12,17 @@ eşleşme, emanet (escrow), posta kutusu, geçmiş ve hiçbir şeyi iki kez öde
   tam iadeli iptal var.
 - **Hiçbir şey iki kez verilmez.** Her para ve eşya hareketi gerçekleşmeden önce günlüğe yazılır. Çökme veya
   `kill -9` sonrası sonucu kesin olan işlemleri kendisi tamamlar ya da geri alır; kesin olmayanları tahmin etmek
-  yerine yönetici kararına (karantina) bırakır. Gerçek sunucularda 22 çökme senaryosunda denendi:
+  yerine yönetici kararına (karantina) bırakır. Gerçek sunucularda 24 çökme denemesiyle sınandı:
   [06-qa-report.md](06-qa-report.md).
 - **Kendi emirleriniz birbiriyle eşleşmez**; sıradaki yerleri de korunur.
 - **Birebir eşya.** Büyülü, isim verilmiş veya özel veri taşıyan eşyalar kendi pazarında işlem görür.
 - **Menü ve komutlar**, Türkçe ve İngilizce, oyuncu başına dil, tüm menü düzenleri ayarlanabilir.
+- **Hemen al-sat ya da bekle.** Emir defterinde Hemen al / Hemen sat, `/pazar sat` (eldeki deste) ve `/pazar sat hepsi`;
+  her biri onay ekranıyla. Açık emirlerin fiyatı değiştirilebilir, eşya eklenebilir.
+- **Kolay kullanım.** Pazar listesinde kategoriler ve sıralama, fiyat ve adet için örs penceresi, `2.5k` gibi kısaltmalar,
+  birleştirilmiş bildirimler ve girişte "siz yokken" özeti.
+- **Yönetici ayarları.** Satış vergisi ve alış emri ücreti (varsayılan kapalı), eşya bazlı fiyat aralığı, kapalı dünya ve
+  oyun modları, bakım için alım satım dondurma, PlaceholderAPI yer tutucuları.
 - **`/pazaradmin verify`** canlı verideki defter değişmezlerini istediğiniz an denetler.
 
 ## Gereksinimler ve test edilen kurulumlar
@@ -32,9 +38,9 @@ Yalnızca gerçekten çalıştırılanlar "test edildi" olarak yazılır:
 
 | Paper | Java | Köprü + ekonomi | Durum |
 |---|---|---|---|
-| 1.21.4 (build 232) | 21 ve 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek oyuncu, menüler, iki oyunculu alım satım, 18 çökme senaryosu (çökme testleri Java 25'te) |
-| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek oyuncu, menüler, 4 eşya çökme senaryosu |
-| 1.21.11 (build 132) | 21 ve 25 | Vault 1.7.3 + EssentialsX 2.22.0 | Açılıyor, komutlar yanıt veriyor; oyunda denenmedi |
+| 1.21.4 (build 232) | 21 ve 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek istemci ve bot oyuncular, tüm özellikler, 20 çökme denemesi (Java 25); PlaceholderAPI 2.12.3 |
+| 26.3 (build 253) | 25 | VaultUnlocked 2.20.3 + EssentialsX 2.22.0 | **Test edildi**: gerçek istemci: menüler, örs girişi, satış emri, iptal, posta kutusu; eski veritabanının yükseltilmesi. Daha eski bir build ile 4 eşya çökme denemesi |
+| 1.21.11 (build 132) | 25 | Vault 1.7.3 + EssentialsX 2.22.0 | **Test edildi** (bot oyuncularla): emir ve eşleşme, kategoriler, sıralama, örsle arama, posta kutusu, dondurma; eski veritabanının yükseltilmesi |
 | Diğerleri | | | Henüz test edilmedi |
 
 ## Kurulum
@@ -51,12 +57,15 @@ Yalnızca gerçekten çalıştırılanlar "test edildi" olarak yazılır:
 |---|---|
 | `/pazar` | Menüyü açar |
 | `/pazar sat <adet> <fiyat>` | Elinizdeki eşya için satış emri (eşyalar hemen envanterden alınır) |
+| `/pazar sat` | Elinizdeki desteyi en iyi alış emirlerine hemen satar (önce onay ekranı) |
+| `/pazar sat hepsi` | Envanterde alıcısı olan her şeyi hemen satar (önce onay ekranı) |
 | `/pazar al <adet> <fiyat> [eşya]` | Elinizdeki veya adı verilen eşya (ör. `diamond`) için alış emri (para hemen ayrılır) |
 | `/pazar emirler` | Aktif emirleriniz |
 | `/pazar iptal <no>` | Emri iptal eder; kalan posta kutusuna gider |
 | `/pazar posta` | Sizi bekleyenler |
 | `/pazar topla [hepsi\|no]` | Posta kutusundan toplar |
 | `/pazar dil <tr_TR\|en_US>` | Dilinizi değiştirir |
+| `/pazar bildirim` | Canlı pazar bildirimlerini kapatır / açar (posta kutusu etkilenmez) |
 | `/pazar yardım` | Komut listesi |
 
 İngilizce adlar da çalışır (`/market sell`, `buy`, `orders`, …). Takma adlar: `/market`, `/em`. Fiyat birim başınadır;
@@ -67,6 +76,7 @@ ondalık için nokta kullanılır (`12.50`).
 | `reload` | Ayarları, dilleri ve menüleri yeniden yükler |
 | `verify` | Defter değişmezlerini denetler |
 | `safemode [on\|off]` | Güvenli modu gösterir veya açar/kapatır |
+| `freeze [on\|off]` | Bakım için alım satımı dondurur: yeni emir, anlık işlem ve düzenleme reddedilir; iptal ve posta kutusu çalışır. Yeniden başlatmada da açık kalır |
 | `recovery list` | Yönetici kararı bekleyen işlemler |
 | `recovery resolve <op> <applied\|not-applied> [adet]` | Bunlardan birine karar verir (aşağıya bakın) |
 
@@ -78,6 +88,9 @@ ondalık için nokta kullanılır (`12.50`).
 | `eldrosmarket.buy` | herkes | Alış emri |
 | `eldrosmarket.sell` | herkes | Satış emri |
 | `eldrosmarket.limit.orders.<n>` | — | En fazla `n` aktif emir (en yükseği geçerli) |
+| `eldrosmarket.tax.<kademe>` | — | `economy.sales-tax.tiers.<kademe>` vergi oranı (en düşüğü geçerli; açıkça verilmeli) |
+| `eldrosmarket.fee.exempt` | kimse | Alış emri ücreti ödemez (op'lara otomatik verilmez) |
+| `eldrosmarket.bypass.restrictions` | kimse | Kapalı dünya ve oyun modlarında da pazarı kullanır |
 | `eldrosmarket.admin` | op | Tüm yönetici komutları |
 
 ## Ayarlar
@@ -87,6 +100,13 @@ eşya adıyla hem Türkçe kelimelerle çalışır: `elmas kılıç`, `açık ma
 `lang/tr_TR.yml` içindeki `search-aliases` sözlüğünden gelir (yaklaşık 200 kelime); sunucu sahibi ekleyebilir. Tüm anahtarlar `config.yml` içinde açıklamalı. Dil dosyaları `lang/` (MiniMessage), menü düzenleri `menus/` içinde;
 ayrıntılar İngilizce README'de. Hatalı bir menü değeri konsola dosya ve anahtar adıyla yazılır, yalnızca o anahtar için
 varsayılan kullanılır.
+
+Diğer ayarlar (tamamı `config.yml` içinde açıklamalı, tablolar İngilizce README'de): satış vergisi ve alış emri ücreti
+(`economy.*`, varsayılan kapalı), eşya bazlı fiyat aralığı (`limits.per-item`), kapalı dünya ve oyun modları
+(`restrictions.*`; creative ve spectator varsayılan kapalı), çevrimiçi oyuncuya parayı otomatik yatırma
+(`mailbox.auto-collect-money`, varsayılan kapalı), sayı girişi (`input.method`: örs veya sohbet), bildirimler ve
+PlaceholderAPI. Pazar kategorileri `categories.yml` dosyasında: her kategori eşya kimliği desenleriyle tanımlanır
+(`*_ore` gibi), ilk eşleşen kazanır.
 
 ## Çökme sonrası yöneticinin bilmesi gerekenler
 
@@ -114,7 +134,12 @@ Eldros bu işlemleri karantinaya aldı ve doğru karar `not-applied` idi. 2. ad�
 ## Desteklenmeyenler
 
 - Oyuncu verisinin yedekten geri yüklenmesi veya envanter senkron eklentileri.
-- MySQL / sunucu ağı (ayrı Pro sürümü için planlanıyor).
+- MySQL, BungeeCord/Velocity ağları, Folia, Spigot.
+
+## Nasıl yapıldı
+
+Kodun, testlerin ve belgelerin büyük kısmı, yazarın yönlendirmesiyle bir yapay zekâ asistanı (Claude) tarafından
+yazıldı. Her özellik, [QA raporunda](06-qa-report.md) anlatıldığı gibi gerçek Paper sunucularında test edildi.
 
 ## Destek
 

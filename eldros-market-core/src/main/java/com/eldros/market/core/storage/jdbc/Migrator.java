@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  */
 public final class Migrator {
 
-    public static final List<String> MIGRATIONS = List.of("V1__init.sql");
+    public static final List<String> MIGRATIONS = List.of("V1__init.sql", "V2__fees.sql");
 
     private static final String BASE = "/com/eldros/market/core/storage/migration/";
     private static final Pattern NAME = Pattern.compile("V(\\d+)__[^/]*\\.sql$");

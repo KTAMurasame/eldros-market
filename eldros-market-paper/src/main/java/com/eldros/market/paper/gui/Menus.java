@@ -8,11 +8,14 @@ import com.eldros.market.paper.gui.screen.BrowseMenu;
 import com.eldros.market.paper.gui.screen.CatalogMenu;
 import com.eldros.market.paper.gui.screen.ConfirmMenu;
 import com.eldros.market.paper.gui.screen.CreateOrderMenu;
+import com.eldros.market.paper.gui.screen.EditOrderMenu;
 import com.eldros.market.paper.gui.screen.HistoryMenu;
+import com.eldros.market.paper.gui.screen.InstantMenu;
 import com.eldros.market.paper.gui.screen.LanguageMenu;
 import com.eldros.market.paper.gui.screen.MailboxMenu;
 import com.eldros.market.paper.gui.screen.MainMenu;
 import com.eldros.market.paper.gui.screen.MyOrdersMenu;
+import com.eldros.market.paper.gui.screen.SellAllMenu;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -35,16 +38,79 @@ public final class Menus {
         }
     }
 
+    /** What a player last chose in a list screen; kept until they leave. */
+    public record View(String category, MarketSort sort) {
+        public static final View DEFAULT = new View(Categories.ALL, MarketSort.ACTIVE);
+    }
+
+    private final java.util.Map<java.util.UUID, View> browseViews = new java.util.HashMap<>();
+    private final java.util.Map<java.util.UUID, View> catalogViews = new java.util.HashMap<>();
+
+    public View browseView(Player p) {
+        return browseViews.getOrDefault(p.getUniqueId(), View.DEFAULT);
+    }
+
+    public void browseView(Player p, View v) {
+        browseViews.put(p.getUniqueId(), v);
+    }
+
+    public View catalogView(Player p) {
+        return catalogViews.getOrDefault(p.getUniqueId(), View.DEFAULT);
+    }
+
+    public void catalogView(Player p, View v) {
+        catalogViews.put(p.getUniqueId(), v);
+    }
+
+    /** Drops a leaving player's view state. */
+    public org.bukkit.event.Listener quitListener() {
+        return new org.bukkit.event.Listener() {
+            @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+            public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+                browseViews.remove(e.getPlayer().getUniqueId());
+                catalogViews.remove(e.getPlayer().getUniqueId());
+            }
+        };
+    }
+
     private final MarketActions actions;
     private final MenuConfigs configs;
     private final Icons icons;
     private final ChatPrompt prompt;
+    private final AnvilPrompt anvil;
 
-    public Menus(MarketActions actions, MenuConfigs configs, Icons icons, ChatPrompt prompt) {
+    public Menus(MarketActions actions, MenuConfigs configs, Icons icons, ChatPrompt prompt, AnvilPrompt anvil) {
         this.actions = actions;
         this.configs = configs;
         this.icons = icons;
         this.prompt = prompt;
+        this.anvil = anvil;
+    }
+
+    /**
+     * Asks the player for a value: in an anvil window whose text field starts with {@code initial} (default), or in
+     * chat when {@code input.method} is chat or the server cannot open anvil windows. {@code promptKey} is the chat
+     * prompt (menu.prompt.x); the anvil title is menu.input.x.
+     */
+    public void input(Player p, String promptKey, String initial, java.util.function.Consumer<String> onAnswer, Runnable onCancel) {
+        var rt = actions.runtime();
+        var msg = rt.messages();
+        if (rt.settings().anvilInput()) {
+            String lang = msg.languageOf(p);
+            String kind = promptKey.substring(promptKey.lastIndexOf('.') + 1);
+            if (anvil.ask(p, msg.render(lang, "menu.input." + kind), initial, msg.renderList(lang, "menu.input.hint"),
+                    msg.render(lang, "menu.input.confirm"), onAnswer, onCancel)) {
+                return;
+            }
+        }
+        p.closeInventory();
+        msg.send(p, promptKey);
+        prompt.ask(p, onAnswer, onCancel);
+    }
+
+    /** A money amount as typed (no grouping), e.g. 1234.50. */
+    public String plain(Money m) {
+        return java.math.BigDecimal.valueOf(m.minor(), actions.runtime().settings().scale().decimalPlaces()).toPlainString();
     }
 
     public MarketActions actions() {
@@ -73,6 +139,9 @@ public final class Menus {
             actions.runtime().messages().send(p, "general.no-permission");
             return;
         }
+        if (!actions.allowedHere(p)) {
+            return;
+        }
         new MainMenu(this, p).open();
     }
 
@@ -94,6 +163,19 @@ public final class Menus {
 
     public void openConfirm(Player p, Draft draft) {
         new ConfirmMenu(this, p, draft).open();
+    }
+
+    /** Confirmation of an instant trade of up to {@code wanted} items against the best orders. */
+    public void openInstant(Player p, ItemStack item, com.eldros.market.api.model.TemplateId template, OrderSide side, long wanted) {
+        new InstantMenu(this, p, item, template, side, wanted).open();
+    }
+
+    public void openEdit(Player p, com.eldros.market.core.storage.jdbc.JdbcLedger.OrderRow order) {
+        new EditOrderMenu(this, p, order, order.unitPrice(), 0).open();
+    }
+
+    public void openSellAll(Player p) {
+        new SellAllMenu(this, p).open();
     }
 
     public void openOrders(Player p, int page) {

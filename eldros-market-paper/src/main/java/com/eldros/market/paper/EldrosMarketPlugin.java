@@ -51,12 +51,34 @@ public final class EldrosMarketPlugin extends JavaPlugin {
         MarketActions actions = new MarketActions(runtime);
         Icons icons = new Icons(this);
         ChatPrompt prompt = new ChatPrompt(this);
-        Menus menus = new Menus(actions, menuConfigs, icons, prompt);
+        com.eldros.market.paper.gui.AnvilPrompt anvil = new com.eldros.market.paper.gui.AnvilPrompt(this);
+        Menus menus = new Menus(actions, menuConfigs, icons, prompt, anvil);
         register("market", new MarketCommand(actions, menus));
         register("marketadmin", new AdminCommand(runtime));
         getServer().getPluginManager().registerEvents(new PlayerListener(runtime), this);
         getServer().getPluginManager().registerEvents(new MenuListener(prompt, icons, getLogger()), this);
+        getServer().getPluginManager().registerEvents(menus.quitListener(), this);
+        getServer().getPluginManager().registerEvents(anvil, this);
         registerDebugCommand();
+        hookPlaceholderApi(actions);
+    }
+
+    private com.eldros.market.paper.integration.PlaceholderSnapshots placeholders;
+
+    /** PlaceholderAPI is optional (softdepend): without it nothing here runs or is even loaded. */
+    private void hookPlaceholderApi(MarketActions actions) {
+        if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            return;
+        }
+        try {
+            placeholders = new com.eldros.market.paper.integration.PlaceholderSnapshots(runtime, actions);
+            new com.eldros.market.paper.integration.MarketPlaceholderExpansion(runtime, placeholders).register();
+            placeholders.start();
+            getLogger().info("PlaceholderAPI found: %eldrosmarket_...% placeholders registered.");
+        } catch (RuntimeException | LinkageError e) {
+            placeholders = null;
+            getLogger().log(Level.WARNING, "Could not register PlaceholderAPI placeholders; the market works without them", e);
+        }
     }
 
     /** Test builds only: the class is absent from release jars, so this does nothing there. */
@@ -86,6 +108,10 @@ public final class EldrosMarketPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (placeholders != null) {
+            placeholders.stop();
+            placeholders = null;
+        }
         if (runtime != null) {
             runtime.stop();
             runtime = null;
@@ -105,5 +131,8 @@ public final class EldrosMarketPlugin extends JavaPlugin {
         messages.load(next.defaultLanguage(), next.useClientLocale());
         menuConfigs.load();
         runtime.applySettings(next);
+        if (placeholders != null) {
+            placeholders.start(); // the refresh interval may have changed
+        }
     }
 }

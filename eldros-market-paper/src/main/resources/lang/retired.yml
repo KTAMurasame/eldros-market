@@ -1,0 +1,65 @@
+# Former default texts of the bundled language files. On start, a key in plugins/EldrosMarket/lang/<language>.yml
+# whose value is still exactly one of these old defaults is replaced by the current default; text you changed
+# yourself never matches, so it is kept. Not meant to be edited.
+en_US:
+  help:
+    - - "<gold>Eldros Market</gold>"
+      - "<yellow>/market</yellow> <gray>— open the market</gray>"
+      - "<yellow>/market sell <qty> <price></yellow> <gray>— sell the item in your hand</gray>"
+      - "<yellow>/market buy <qty> <price> [item]</yellow> <gray>— buy the item in your hand, or a named item</gray>"
+      - "<yellow>/market orders</yellow> <gray>— your active orders</gray>"
+      - "<yellow>/market cancel <id></yellow> <gray>— cancel one of your orders</gray>"
+      - "<yellow>/market mailbox</yellow> <gray>— items and money waiting for you</gray>"
+      - "<yellow>/market claim [all]</yellow> <gray>— collect from your mailbox</gray>"
+      - "<yellow>/market lang <en_US|tr_TR></yellow> <gray>— change your language</gray>"
+  mailbox:
+    waiting:
+      - "<yellow>You have <count> item(s) waiting in your mailbox.</yellow> <gray>/market mailbox</gray>"
+    reasons:
+      TRADE_ITEM: ["bought"]
+      TRADE_MONEY: ["sold"]
+  admin:
+    usage:
+      - "<gray>/marketadmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [qty]</gray>"
+  menu:
+    prompt:
+      price:
+        - "<yellow>Type the unit price in chat, e.g. 12.50</yellow> <gray>(or <white>cancel</white>).</gray>"
+    browse:
+      entry:
+        - - "<gray>Lowest sell: <best-ask> <dark_gray>(<ask-qty> items)</dark_gray></gray>"
+          - "<gray>Highest buy: <best-bid> <dark_gray>(<bid-qty> items)</dark_gray></gray>"
+          - "<dark_gray><orders> orders</dark_gray>"
+          - "<yellow>Click to open the order book.</yellow>"
+        - - "<gray>Lowest sell: <best-ask> <dark_gray>(<ask-qty> items)</dark_gray></gray>"
+          - "<gray>Highest buy: <best-bid> <dark_gray>(<bid-qty> items)</dark_gray></gray>"
+          - "<dark_gray>Open orders: <orders></dark_gray>"
+          - "<yellow>Click to open the order book.</yellow>"
+    book:
+      ask:
+        lore:
+          - ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to buy at this price.</yellow>"]
+      bid:
+        lore:
+          - ["<gray><qty> items in <orders> order(s)</gray>", "<yellow>Click to sell at this price.</yellow>"]
+tr_TR:
+  help:
+    - - "<gold>Eldros Pazar</gold>"
+      - "<yellow>/pazar</yellow> <gray>— pazarı açar</gray>"
+      - "<yellow>/pazar sat <adet> <fiyat></yellow> <gray>— elinizdeki eşyayı satışa koyar</gray>"
+      - "<yellow>/pazar al <adet> <fiyat> [eşya]</yellow> <gray>— elinizdeki veya adı verilen eşya için alış emri verir</gray>"
+      - "<yellow>/pazar emirler</yellow> <gray>— aktif emirleriniz</gray>"
+      - "<yellow>/pazar iptal <no></yellow> <gray>— emrinizi iptal eder</gray>"
+      - "<yellow>/pazar posta</yellow> <gray>— sizi bekleyen eşya ve paralar</gray>"
+      - "<yellow>/pazar topla [hepsi]</yellow> <gray>— posta kutunuzdan toplar</gray>"
+      - "<yellow>/pazar dil <en_US|tr_TR></yellow> <gray>— dilinizi değiştirir</gray>"
+  mailbox:
+    reasons:
+      TRADE_MONEY: ["satıldı"]
+  admin:
+    usage:
+      - "<gray>/pazaradmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [adet]</gray>"
+  menu:
+    prompt:
+      price:
+        - "<yellow>Birim fiyatı sohbete yazın, örn. 12.50</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"

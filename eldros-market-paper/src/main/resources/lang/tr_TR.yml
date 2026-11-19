@@ -14,6 +14,11 @@ general:
   player-only: "<red>Bunu yalnızca oyuncular yapabilir.</red>"
   no-permission: "<red>Bunu yapma izniniz yok.</red>"
   safe-mode: "<red>Pazar bakım için duraklatıldı. Paranız ve eşyalarınız güvende. Lütfen daha sonra tekrar deneyin.</red>"
+  disabled-world: "<red>Pazar bu dünyada kullanılamaz.</red>"
+  disabled-gamemode: "<red>Pazar <mode> modunda kullanılamaz.</red>"
+  frozen: "<red>Alım satım bakım için donduruldu. Emirlerinizi yine de iptal edebilir, posta kutunuzu boşaltabilirsiniz.</red>"
+  frozen-broadcast: "<yellow>Pazarda alım satım bakım için donduruldu. Emir iptali ve posta kutusu çalışmaya devam ediyor.</yellow>"
+  unfrozen-broadcast: "<green>Pazarda alım satım yeniden açıldı.</green>"
   error: "<red>Bir şeyler ters gitti. Hiçbir ücret alınmadı. Tekrarlarsa bir yetkiliye bildirin.</red>"
   unknown-subcommand: "<red>Bilinmeyen komut. <yellow>/pazar yardım</yellow> yazın.</red>"
   loading: "<gray>Yükleniyor…</gray>"
@@ -23,12 +28,15 @@ help:
   - "<gold>Eldros Pazar</gold>"
   - "<yellow>/pazar</yellow> <gray>— pazarı açar</gray>"
   - "<yellow>/pazar sat <adet> <fiyat></yellow> <gray>— elinizdeki eşyayı satışa koyar</gray>"
+  - "<yellow>/pazar sat</yellow> <gray>— elinizdeki desteyi en iyi alıcılara hemen satar</gray>"
+  - "<yellow>/pazar sat hepsi</yellow> <gray>— alıcısı olan her şeyi hemen satar</gray>"
   - "<yellow>/pazar al <adet> <fiyat> [eşya]</yellow> <gray>— elinizdeki veya adı verilen eşya için alış emri verir</gray>"
   - "<yellow>/pazar emirler</yellow> <gray>— aktif emirleriniz</gray>"
   - "<yellow>/pazar iptal <no></yellow> <gray>— emrinizi iptal eder</gray>"
   - "<yellow>/pazar posta</yellow> <gray>— sizi bekleyen eşya ve paralar</gray>"
   - "<yellow>/pazar topla [hepsi]</yellow> <gray>— posta kutunuzdan toplar</gray>"
   - "<yellow>/pazar dil <en_US|tr_TR></yellow> <gray>— dilinizi değiştirir</gray>"
+  - "<yellow>/pazar bildirim</yellow> <gray>— alım satım bildirimlerini kapatır / açar</gray>"
 
 validation:
   empty: "<red>Lütfen bir değer girin.</red>"
@@ -56,12 +64,15 @@ reason:
   not_available: "<red>Bu artık mevcut değil.</red>"
   not_owner: "<red>Bu emir size ait değil.</red>"
   safe_mode: "<red>Pazar bakım için duraklatıldı. Paranız ve eşyalarınız güvende.</red>"
+  order_changed: "<yellow>Siz düzenlerken emir işlem gördü veya değişti, bu yüzden olduğu gibi bırakıldı. Değişiklik için alınanlar posta kutunuzda.</yellow>"
   quarantined: "<yellow>Ödeme sonucu doğrulanamadı. Bir yetkili inceleyecek — hiçbir şey iki kez alınmaz.</yellow>"
 
 order:
   created-buy: "<green>Alış emri verildi:</green> <yellow><qty>×</yellow> <item>, tanesi <price> (ayrılan: <total>)."
   created-sell: "<green>Satış emri verildi:</green> <yellow><qty>×</yellow> <item>, tanesi <price>."
   filled-now: "<green><qty> adedin <filled> tanesi hemen eşleşti.</green> <yellow>/pazar posta</yellow> ile bakın."
+  edited: "<green>Emir değişti:</green> <yellow><qty>×</yellow> <item>, tanesi <price>."
+  fee-charged: "<gray>Alış emri ücreti olarak <yellow><fee></yellow> alındı (iptalde iade edilmez).</gray>"
   cancelled: "<green>#<id> numaralı emir iptal edildi.</green> Kalanı posta kutunuza gönderildi."
   self-cross: "<gray>Not: kendi emirleriniz birbiriyle eşleşmez.</gray>"
 
@@ -78,14 +89,17 @@ mailbox:
   entry-money: "<gray>#<id></gray> <amount> <gray>(<reason>)</gray>"
   entry-item: "<gray>#<id></gray> <yellow><qty>×</yellow> <item> <gray>(<reason>)</gray>"
   waiting: "<yellow>Posta kutunuzda <count> kayıt bekliyor.</yellow> <gray>/pazar posta</gray>"
+  auto-collected: "<green>+<amount></green> <gray>pazar geliri bakiyenize eklendi.</gray>"
   reasons:
     TRADE_ITEM: "satın alındı"
-    TRADE_MONEY: "satıldı"
+    TRADE_MONEY: "satış geliri"
     PRICE_IMPROVEMENT: "teklifinizden ucuza"
     CANCEL_REFUND: "iptal edilen emir"
     EXPIRE_REFUND: "süresi dolan emir"
     RECOVERY_REFUND: "yeniden başlatma sonrası iade"
     RESOLVED_REFUND: "yetkili kararı"
+    UNFILLED_REFUND: "hemen eşleşmeyen kısım"
+    EDIT_REFUND: "emir değişikliği"
 
 claim:
   money: "<green><amount> toplandı.</green>"
@@ -100,6 +114,9 @@ lang:
 notify:
   trade:
     sold: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla satıldı.</green> <gray>/pazar posta</gray>"
+    sold-taxed: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla satıldı</green> <gray>(satış vergisi <tax>).</gray> <gray>/pazar posta</gray>"
+    sold-auto: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla satıldı.</green>"
+    sold-taxed-auto: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla satıldı</green> <gray>(satış vergisi <tax>).</gray>"
     bought: "<green><yellow><qty>×</yellow> <item> tanesi <price> fiyatla alındı.</green> <gray>/pazar posta</gray>"
   order:
     cancelled: "<gray><item> emriniz iptal edildi; <qty> adet posta kutunuza gönderildi.</gray>"
@@ -108,6 +125,24 @@ notify:
     refund: "<yellow>Sunucu yeniden başladıktan sonra <amount> posta kutunuza iade edildi.</yellow>"
     items: "<yellow>Sunucu yeniden başladıktan sonra <qty>× <item> posta kutunuza iade edildi.</yellow>"
     review: "<yellow>Tamamlanmamış bir pazar işleminiz yetkili tarafından inceleniyor. Hiçbir şey iki kez alınmaz.</yellow>"
+  away:
+    header: "<gold>Siz yokken:</gold>"
+    more: "<gray>…ve <count> kayıt daha. Hepsi <yellow>/pazar posta</yellow> içinde.</gray>"
+
+alerts:
+  muted: "<gray>Pazar bildirimleri <red>kapalı</red>. Girişte özet görmeye devam edeceksiniz. Açmak için <yellow>/pazar bildirim</yellow>.</gray>"
+  unmuted: "<gray>Pazar bildirimleri <green>açık</green>.</gray>"
+
+instant:
+  sold: "<green><yellow><qty>×</yellow> <item> toplam <total> karşılığında satıldı.</green> <gray>/pazar posta</gray>"
+  bought: "<green><yellow><qty>×</yellow> <item> toplam <total> karşılığında alındı.</green> <gray>/pazar posta</gray>"
+  tax-kept: "<gray>Satış vergisi olarak <yellow><tax></yellow> kesildi; <net> posta kutunuza gider.</gray>"
+  returned: "<yellow><qty> adet artık sizin fiyatınızdan eşleşemedi (defter değişti); posta kutunuza döndü.</yellow>"
+  none-filled: "<yellow>Hiçbir şey eşleşmedi: <item> emirleri artık yok. Her şey posta kutunuza döndü.</yellow>"
+  none-held: "<yellow>Satacak <item> eşyanız yok.</yellow>"
+  empty-hand: "<yellow>Satmak istediğiniz eşyayı elinize alın ya da <white>/pazar sat hepsi</white> kullanın.</yellow>"
+  no-buyers: "<yellow>Şu an <item> alan kimse yok. <white>/pazar sat <adet> <fiyat></white> ile satış emri verebilirsiniz.</yellow>"
+  nothing: "<yellow>Bu eşya pazarda işlem görmüyor.</yellow>"
 
 admin:
   reloaded: "<green>Ayarlar ve diller yeniden yüklendi.</green>"
@@ -119,20 +154,34 @@ admin:
   safemode-off: "<green>Güvenli mod KAPALI: pazar yeniden yüklendi ve kurtarıldı.</green>"
   safemode-still: "<red>Veritabanı hâlâ yazmayı reddediyor; güvenli mod açık kalıyor.</red>"
   safemode-status: "<gray>Güvenli mod: <state></gray>"
+  freeze-on: "<yellow>Alım satım donduruldu. <white>/pazaradmin freeze off</white> diyene kadar yeni emir, anlık işlem ve düzenleme reddedilir; yeniden başlatmada da açık kalır.</yellow>"
+  freeze-off: "<green>Alım satım yeniden açıldı.</green>"
+  freeze-status-on: "<gray>Alım satım dondurma: <yellow>AÇIK</yellow> (<white>/pazaradmin freeze off</white>)</gray>"
+  freeze-status-off: "<gray>Alım satım dondurma: KAPALI (<white>/pazaradmin freeze on</white>)</gray>"
   recovery-header: "<gold>Karantinadaki işlemler</gold>"
   recovery-none: "<green>Karantinada işlem yok.</green>"
   recovery-entry: "<gray><op></gray> <yellow><type></yellow> <player> <amount> <gray>(<reason>)</gray>"
   resolved: "<green><op> işlemi <decision> olarak çözüldü.</green>"
   resolve-failed: "<red>Çözülemedi: <error></red>"
   orphan-markers: "<red><player> oyuncusunda journal kaydı olmayan <count> işaretçi var: <list>. Silmeden önce yedekleri kontrol edin.</red>"
-  usage: "<gray>/pazaradmin reload | verify | safemode [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [adet]</gray>"
+  usage: "<gray>/pazaradmin reload | verify | safemode [on|off] | freeze [on|off] | recovery list | recovery resolve <op> <applied|not-applied> [adet]</gray>"
 
 # --- menüler (düzenler menus/*.yml dosyalarında) --------------------------------------------------------
 menu:
   prompt:
     search: "<yellow>Aradığınız eşyayı sohbete yazın, örn. <white>elmas kılıç</white> veya <white>diamond sword</white></yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
     quantity: "<yellow>Adedi sohbete yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
-    price: "<yellow>Birim fiyatı sohbete yazın, örn. 12.50</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    price: "<yellow>Birim fiyatı sohbete yazın, örn. 12.50 veya 2.5k</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    instant-quantity: "<yellow>Şimdi kaç adet almak istiyorsunuz? Sohbete bir sayı yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+    add-quantity: "<yellow>Emre kaç eşya eklemek istiyorsunuz? Sohbete bir sayı yazın</yellow> <gray>(vazgeçmek için <white>iptal</white>).</gray>"
+  input:
+    search: "Ara"
+    quantity: "Adet"
+    price: "Birim fiyat"
+    instant-quantity: "Şimdi kaç adet"
+    add-quantity: "Eklenecek adet"
+    hint: ["<gray>Yukarıdaki yazıyı düzenleyin,</gray>", "<gray>sonra sağdaki kağıda tıklayın.</gray>", "<gray>Esc: vazgeç</gray>"]
+    confirm: "<green>Onaylamak için tıklayın</green>"
   common:
     none: "<gray>yok</gray>"
     back: {name: "<yellow>Geri</yellow>"}
@@ -144,6 +193,12 @@ menu:
     empty: {name: "<gray>Burada henüz bir şey yok.</gray>"}
     search: {name: "<yellow>Ara</yellow>", lore: ["<gray>Şu an: <white><search></white></gray>", "<gray>Tıklayıp sohbete yazın (Türkçe veya İngilizce).</gray>"]}
     clear-search: {name: "<yellow>Aramayı temizle</yellow>"}
+    category: {name: "<yellow>Kategori: <white><current></white></yellow>"}
+    category-all: "Tüm eşyalar"
+    category-other: "Diğer"
+    option: "<dark_gray>  <name></dark_gray>"
+    option-selected: "<yellow>▶ <name></yellow>"
+    cycle-hint: ["<gray>Sol tık: sonraki · Sağ tık: önceki</gray>"]
   main:
     title: "<dark_gray>Eldros Pazar</dark_gray>"
     browse: {name: "<gold>Pazara göz at</gold>", lore: ["<gray>Açık alış ve satış emri olan eşyalar.</gray>"]}
@@ -157,6 +212,13 @@ menu:
   browse:
     title: "<dark_gray>Pazar <search></dark_gray>"
     catalog: {name: "<gold>Yeni emir</gold>", lore: ["<gray>Katalogdan herhangi bir eşya seçin.</gray>"]}
+    sort: {name: "<yellow>Sırala: <white><current></white></yellow>"}
+    sort-active: "En çok emir"
+    sort-name: "İsim (A–Z)"
+    sort-demand: "En çok aranan"
+    sort-supply: "En çok sunulan"
+    sort-cheapest: "En ucuz"
+    sort-best-paying: "En çok ödeyen"
     empty: {name: "<gray>Henüz açık emir yok.</gray>", lore: ["<gray>İlk siz olun: <yellow>Yeni emir</yellow>.</gray>"]}
     entry:
       - "<gray>En düşük satış: <best-ask> <dark_gray>(<ask-qty> adet)</dark_gray></gray>"
@@ -185,6 +247,35 @@ menu:
     buy: {name: "<green>Alış emri ver</green>", lore: ["<gray>Para, emir dolana veya iptal edilene kadar ayrılır.</gray>"]}
     sell: {name: "<gold>Satış emri ver</gold>", lore: ["<gray>Eşyalar satılana veya iptal edilene kadar envanterinizden alınır.</gray>"]}
     empty: {name: "<gray>Bu eşya için henüz emir yok.</gray>", lore: ["<gray>İlk emri aşağıdan verin.</gray>"]}
+    buy-now: {name: "<green>Hemen al</green>", lore: ["<gray>En ucuz satıcılardan, hemen.</gray>", "<gray>En düşük satış: <best-ask></gray>"]}
+    sell-now: {name: "<gold>Hemen sat</gold>", lore: ["<gray>En iyi alıcılara, hemen.</gray>", "<gray>En yüksek alış: <best-bid></gray>", "<gray>Elinizdeki: <yellow><held></yellow></gray>"]}
+  instant:
+    title: "<dark_gray>Hemen işlem: </dark_gray><item>"
+    summary:
+      lore-sell:
+        - "<gray><yellow><qty>×</yellow> en iyi alış emirlerine hemen satılır.</gray>"
+        - "<gray>Alıcılar toplam <gold><total></gold> öder.</gray>"
+        - "<dark_gray>Defter değişse bile tanesi <worst> altına satılmaz.</dark_gray>"
+      lore-buy:
+        - "<gray><yellow><qty>×</yellow> en ucuz satış emirlerinden hemen alınır.</gray>"
+        - "<gray>Toplam <gold><total></gold> ödersiniz.</gray>"
+        - "<dark_gray>Tanesi <worst> üstüne alınmaz; fark posta kutunuza döner.</dark_gray>"
+      partial: ["<yellow><wanted> adedin yalnızca <qty> tanesi şu an işlem görebilir.</yellow>"]
+      own-skipped: ["<aqua>Kendi emirleriniz atlanır.</aqua>"]
+      tax: ["<gray>%<rate> satış vergisi kesilir (yaklaşık <tax>).</gray>"]
+      no-buyers: ["<yellow>Şu an bunu alan kimse yok.</yellow>"]
+      no-sellers: ["<yellow>Şu an bunu satan kimse yok.</yellow>"]
+    confirm: {name: "<green>Onayla</green>", lore: ["<gray><qty>× · <total></gray>"]}
+    cancel: {name: "<red>Geri</red>"}
+  sell-all:
+    title: "<dark_gray>Hepsini hemen sat</dark_gray>"
+    entry:
+      lore: ["<gray><yellow><qty>×</yellow> · <gold><total></gold></gray>", "<dark_gray>Tanesi <worst> altına satılmaz</dark_gray>"]
+      partial: ["<yellow>Alıcılar elinizdeki <held> adedin yalnızca <qty> tanesini istiyor.</yellow>"]
+    summary: {name: "<gold>Toplam <total></gold>", lore: ["<gray><kinds> çeşit, <qty> adet</gray>"]}
+    confirm: {name: "<green>Bunların hepsini sat</green>", lore: ["<gray>Toplam <total></gray>"]}
+    cancel: {name: "<red>Vazgeç</red>"}
+    empty: {name: "<gray>Envanterinizde şu an alıcısı olan bir şey yok.</gray>"}
   create:
     title: "<dark_gray>Yeni emir: </dark_gray><item>"
     item:
@@ -224,6 +315,8 @@ menu:
         - "<gray>Eşyalar şimdi envanterinizden alınır.</gray>"
       fill: ["<green><fill> adet hemen <cost> karşılığında işlem görür.</green>"]
       own-cross: ["<aqua>Kendi karşı emriniz bu aralıkta; atlanacak.</aqua>"]
+      fee: ["<gold>Ücret: <fee></gold> <gray>(şimdi alınır, iptalde iade edilmez)</gray>"]
+      tax: ["<gray>Her satıştan %<rate> satış vergisi kesilir.</gray>"]
     confirm: {name: "<green>Emri ver</green>", lore: ["<gray><side> <qty>× · <price></gray>"]}
     cancel: {name: "<red>Geri</red>"}
   orders:
@@ -235,7 +328,32 @@ menu:
       - "<gray>Kalan: <yellow><remaining></yellow>/<qty> <dark_gray>(%<percent> doldu)</dark_gray></gray>"
       - "<gray>Birim fiyat: <price></gray>"
       - "<gray>Ayrılan: <reserved></gray>"
+      - "<yellow>Fiyatı değiştirmek veya eşya eklemek için tıklayın.</yellow>"
       - "<red>İptal için Shift ile tıklayın.</red>"
+  edit:
+    title: "<dark_gray>Emri değiştir: </dark_gray><item>"
+    item:
+      lore:
+        - "<gray><side></gray>"
+        - "<gray>Birim fiyat: <old-price> → <yellow><price></yellow></gray>"
+        - "<gray>Kalan adet: <remaining> → <yellow><total></yellow></gray>"
+    cost:
+      pay: ["<gold>Şimdi <amount> daha ödersiniz.</gold>"]
+      refund: ["<green><amount> posta kutunuza döner.</green>"]
+      items: ["<gold><add> eşya daha şimdi envanterinizden alınır.</gold>"]
+    queue: ["<dark_gray>Değişen emir, kendi fiyatında sıranın sonuna geçer.</dark_gray>"]
+    price-minus-10: {name: "<gold>Fiyat -10</gold>"}
+    price-minus-1: {name: "<gold>Fiyat -1</gold>"}
+    price-plus-1: {name: "<aqua>Fiyat +1</aqua>"}
+    price-plus-10: {name: "<aqua>Fiyat +10</aqua>"}
+    price-input: {name: "<yellow>Birim fiyat: <price></yellow>", lore: ["<gray>Fiyat yazmak için tıklayın.</gray>"]}
+    qty-minus-10: {name: "<red>Ekle -10</red>"}
+    qty-minus-1: {name: "<red>Ekle -1</red>"}
+    qty-plus-1: {name: "<green>Ekle +1</green>"}
+    qty-plus-10: {name: "<green>Ekle +10</green>"}
+    qty-plus-64: {name: "<green>Ekle +64</green>"}
+    qty-input: {name: "<yellow>Eklenecek: <add></yellow>", lore: ["<gray>Kaç adet ekleneceğini yazmak için tıklayın.</gray>"]}
+    confirm: {name: "<green>Değişiklikleri kaydet</green>", lore: ["<gray><total>× · <price></gray>"]}
   history:
     title: "<dark_gray>Geçmiş</dark_gray>"
     empty: {name: "<gray>Henüz alım satım yok.</gray>"}

@@ -24,8 +24,10 @@ public final class BookView {
     /**
      * What an order would do right now: {@code fillable} items trade immediately at {@code cost} in total
      * (resting prices, own orders skipped), and {@code crossesOwn} tells that an own opposite order sits in range.
+     * {@code worstPrice} is the least favourable resting price that would be traded (empty when nothing fills); an
+     * instant order uses it as its limit so a moving book can never give the player a worse price than shown.
      */
-    public record Preview(long fillable, Money cost, boolean crossesOwn) {
+    public record Preview(long fillable, Money cost, boolean crossesOwn, Optional<Money> worstPrice) {
     }
 
     static boolean crosses(OrderSide incomingSide, Money limit, Money restingPrice) {

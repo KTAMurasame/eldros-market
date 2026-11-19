@@ -58,8 +58,10 @@ public final class CatalogMenu extends PagedMenu<Material> {
     protected void onOpen() {
         com.eldros.market.paper.gui.ItemSearch finder = search == null ? null
                 : com.eldros.market.paper.gui.ItemSearch.of(search, msg.searchAliases());
+        String category = knownCategory(menus.catalogView(player).category());
         show(catalog().stream()
                 .filter(m -> rt.filter().refusal(new ItemStack(m)).isEmpty())
+                .filter(m -> inCategory(category, m))
                 .filter(m -> finder == null || finder.matches(m.getKey().getKey(), null))
                 .toList());
     }
@@ -68,13 +70,17 @@ public final class CatalogMenu extends PagedMenu<Material> {
     protected void drawControls() {
         button("back", c -> menus.openMain(player));
         button("search", c -> {
-            player.closeInventory();
-            msg.send(player, "menu.prompt.search");
-            menus.prompt().ask(player, text -> menus.openCatalog(player, text, 0), () -> menus.openCatalog(player, search, page));
+            menus.input(player, "menu.prompt.search", search == null ? "" : search,
+                    text -> menus.openCatalog(player, text, 0), () -> menus.openCatalog(player, search, page));
         }, Messages.text("search", search == null ? "-" : search));
         if (search != null) {
             button("clear-search", c -> menus.openCatalog(player, null, 0));
         }
+        String category = knownCategory(menus.catalogView(player).category());
+        categoryButton(category, id -> {
+            menus.catalogView(player, new Menus.View(id, menus.catalogView(player).sort()));
+            menus.openCatalog(player, search, 0);
+        });
         button("held-item", c -> {
             ItemStack hand = player.getInventory().getItemInMainHand();
             Optional<String> refusal = rt.filter().refusal(hand);

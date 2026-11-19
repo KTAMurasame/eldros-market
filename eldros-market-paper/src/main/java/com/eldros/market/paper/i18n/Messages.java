@@ -104,6 +104,17 @@ public final class Messages {
         return Map.copyOf(out);
     }
 
+    /** Former default texts (lang/retired.yml in the jar); empty if missing. */
+    private YamlConfiguration retired() {
+        try (InputStream in = plugin.getResource("lang/retired.yml")) {
+            return in == null ? new YamlConfiguration()
+                    : YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            logger.warning("Could not read the bundled lang/retired.yml: " + e.getMessage());
+            return new YamlConfiguration();
+        }
+    }
+
     private void mergeMissingKeys(File file, String bundled) {
         try (InputStream in = plugin.getResource("lang/" + bundled + ".yml")) {
             if (in == null) {
@@ -111,16 +122,11 @@ public final class Messages {
             }
             YamlConfiguration defaults = YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
             YamlConfiguration current = YamlConfiguration.loadConfiguration(file);
-            boolean changed = false;
-            for (String key : defaults.getKeys(true)) {
-                if (!defaults.isConfigurationSection(key) && !current.contains(key)) {
-                    current.set(key, defaults.get(key));
-                    changed = true;
-                }
-            }
-            if (changed) {
+            LangMerger.Result result = LangMerger.merge(defaults, current, retired().getConfigurationSection(bundled));
+            if (result.changed()) {
                 current.save(file);
-                logger.info("Added new message keys to lang/" + bundled + ".yml");
+                logger.info("Updated lang/" + bundled + ".yml: " + result.added() + " new message(s), "
+                        + result.updated() + " unchanged old default(s) replaced by the new text");
             }
         } catch (IOException e) {
             logger.warning("Could not update lang/" + bundled + ".yml: " + e.getMessage());

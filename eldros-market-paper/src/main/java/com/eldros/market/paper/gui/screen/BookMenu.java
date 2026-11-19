@@ -4,6 +4,8 @@ import com.eldros.market.api.model.OrderSide;
 import com.eldros.market.api.model.TemplateId;
 import com.eldros.market.core.domain.Money;
 import com.eldros.market.core.engine.BookView.DepthLevel;
+import com.eldros.market.core.service.AmountParser;
+import com.eldros.market.core.service.ValidationCode;
 import com.eldros.market.paper.action.MarketActions;
 import com.eldros.market.paper.gui.Menu;
 import com.eldros.market.paper.gui.Menus;
@@ -70,14 +72,49 @@ public final class BookMenu extends Menu {
                 lines("item.lore", price("best-ask", bestAsk), price("best-bid", bestBid))), null));
         levels(book.asks(), layout.group("asks"), "ask", OrderSide.BUY);
         levels(book.bids(), layout.group("bids"), "bid", OrderSide.SELL);
-        Money fallback = rt.settings().limits().minUnitPrice();
+        Money fallback = rt.limitsFor(item.getType()).minUnitPrice();
         button("buy", c -> menus.openCreate(player, new Menus.Draft(item, OrderSide.BUY, 1,
                 bestAsk.or(() -> bestBid).orElse(fallback))));
         button("sell", c -> menus.openCreate(player, new Menus.Draft(item, OrderSide.SELL, 1,
                 bestBid.or(() -> bestAsk).orElse(fallback))));
+        if (template.isPresent()) {
+            TemplateId t = template.get();
+            button("buy-now", c -> askBuyNow(t), price("best-ask", bestAsk));
+            button("sell-now", c -> {
+                long held = owned();
+                if (held <= 0) {
+                    msg.send(player, "instant.none-held", Messages.component("item", item.displayName()));
+                    return;
+                }
+                menus.openInstant(player, item, t, OrderSide.SELL, held);
+            }, price("best-bid", bestBid), Messages.text("held", owned()));
+        }
         if (book.asks().isEmpty() && book.bids().isEmpty()) {
             button("empty", null);
         }
+    }
+
+    /** Asks in chat how many to buy instantly, then shows the instant-trade confirmation. */
+    private void askBuyNow(TemplateId t) {
+        menus.input(player, "menu.prompt.instant-quantity", "1", text -> {
+            AmountParser.Result<Long> q = AmountParser.parseQuantity(text);
+            if (!q.isOk() || q.value() <= 0) {
+                actions.validation(player, q.isOk() ? ValidationCode.QUANTITY_INVALID : q.error());
+                menus.openBook(player, item);
+                return;
+            }
+            menus.openInstant(player, item, t, OrderSide.BUY, q.value());
+        }, () -> menus.openBook(player, item));
+    }
+
+    private long owned() {
+        long n = 0;
+        for (ItemStack s : player.getInventory().getStorageContents()) {
+            if (s != null && s.isSimilar(item)) {
+                n += s.getAmount();
+            }
+        }
+        return n;
     }
 
     /** One side; clicking a level opens an order of {@code clickSide} at that level's price for its quantity. */

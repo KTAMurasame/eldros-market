@@ -82,7 +82,21 @@ class BookViewTest {
         assertThat(p.fillable()).isEqualTo(3);
         assertThat(p.cost()).isEqualTo(Money.ofMinor(150));
         assertThat(p.crossesOwn()).isTrue();
+        assertThat(p.worstPrice()).contains(Money.ofMinor(50));
         assertThat(engine.preview(B, BUY, DIAMOND, Money.ofMinor(39), 1).fillable()).isZero();
+        assertThat(engine.preview(B, BUY, DIAMOND, Money.ofMinor(39), 1).worstPrice()).isEmpty();
+    }
+
+    // Break: the worst price is taken from a level the order never reaches, so an instant order is limited too far.
+    @Test
+    void worstPriceIsTheLastLevelActuallyTraded() {
+        rest(B, BUY, DIAMOND, 50, 2);
+        rest(B, BUY, DIAMOND, 45, 4);
+        rest(B, BUY, DIAMOND, 30, 9);
+
+        assertThat(engine.preview(A, SELL, DIAMOND, Money.ofMinor(1), 3).worstPrice()).contains(Money.ofMinor(45));
+        assertThat(engine.preview(A, SELL, DIAMOND, Money.ofMinor(1), 2).worstPrice()).contains(Money.ofMinor(50));
+        assertThat(engine.preview(A, SELL, DIAMOND, Money.ofMinor(1), 100).fillable()).isEqualTo(15);
     }
 
     // Break: the preview walks the book differently from plan() (price order, self-trade skip, resting price).

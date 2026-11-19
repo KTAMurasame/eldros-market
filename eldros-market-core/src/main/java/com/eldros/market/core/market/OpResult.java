@@ -7,7 +7,7 @@ public record OpResult(Status status, Reason reason, String opId, MatchPlan plan
 
     public enum Status { DONE, REJECTED, QUARANTINED }
 
-    public enum Reason { NONE, INSUFFICIENT_FUNDS, NOT_ENOUGH_ITEMS, INVENTORY_FULL, NOT_AVAILABLE, NOT_OWNER, SAFE_MODE }
+    public enum Reason { NONE, INSUFFICIENT_FUNDS, NOT_ENOUGH_ITEMS, INVENTORY_FULL, NOT_AVAILABLE, NOT_OWNER, SAFE_MODE, ORDER_CHANGED }
 
     static OpResult done(String opId, MatchPlan plan, long quantity) {
         return new OpResult(Status.DONE, Reason.NONE, opId, plan, quantity);

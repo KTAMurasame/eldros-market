@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.logging.Level;
 
-/** {@code /marketadmin} (alias {@code /pazaradmin}): reload, verify, safe mode and quarantine resolution. */
+/** {@code /marketadmin} (alias {@code /pazaradmin}): reload, verify, safe mode, trading freeze and quarantine resolution. */
 public final class AdminCommand implements TabExecutor {
 
     private final MarketRuntime rt;
@@ -37,6 +37,7 @@ public final class AdminCommand implements TabExecutor {
             case "verify" -> verify(sender);
             case "safemode" -> safeMode(sender, args);
             case "recovery" -> recovery(sender, args);
+            case "freeze", "dondur" -> freeze(sender, args);
             default -> msg.send(sender, "admin.usage");
         }
         return true;
@@ -84,6 +85,34 @@ public final class AdminCommand implements TabExecutor {
             }, rt.main());
             default -> msg.send(sender, "admin.safemode-status", Messages.text("state",
                     rt.safeMode().isActive() ? "ON (" + rt.safeMode().reason() + ")" : "OFF"));
+        }
+    }
+
+    /** {@code freeze [on|off]}: stops new orders, instant trades and edits; cancelling and the mailbox keep working. */
+    private void freeze(CommandSender sender, String[] args) {
+        String what = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "";
+        boolean on;
+        switch (what) {
+            case "on", "aç", "ac" -> on = true;
+            case "off", "kapat" -> on = false;
+            default -> {
+                msg.send(sender, rt.isFrozen() ? "admin.freeze-status-on" : "admin.freeze-status-off");
+                return;
+            }
+        }
+        try {
+            rt.setFrozen(on, sender.getName());
+        } catch (java.io.IOException e) {
+            rt.plugin().getLogger().log(Level.SEVERE, "Could not store the trading freeze", e);
+            msg.send(sender, "general.error");
+            return;
+        }
+        msg.send(sender, on ? "admin.freeze-on" : "admin.freeze-off");
+        String key = on ? "general.frozen-broadcast" : "general.unfrozen-broadcast";
+        for (var player : Bukkit.getOnlinePlayers()) {
+            if (player != sender && player.hasPermission("eldrosmarket.use")) {
+                msg.send(player, key);
+            }
         }
     }
 
@@ -163,9 +192,9 @@ public final class AdminCommand implements TabExecutor {
             return List.of();
         }
         List<String> options = switch (args.length) {
-            case 1 -> List.of("reload", "verify", "safemode", "recovery");
+            case 1 -> List.of("reload", "verify", "safemode", "recovery", "freeze");
             case 2 -> switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "safemode" -> List.of("on", "off");
+                case "safemode", "freeze" -> List.of("on", "off");
                 case "recovery" -> List.of("list", "resolve");
                 default -> List.of();
             };
